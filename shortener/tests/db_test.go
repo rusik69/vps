@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rusik69/vps/url-shortener/internal/db"
+	"github.com/rusik69/shortener/internal/db"
 )
 
 func TestDBOperations(t *testing.T) {

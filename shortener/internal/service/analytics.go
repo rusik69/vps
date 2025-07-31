@@ -3,70 +3,76 @@ package service
 import (
 	"database/sql"
 	"time"
-
-	"github.com/rusik69/shortener/internal/db"
 )
 
-// AnalyticsService handles URL analytics
 //go:generate mockery --name AnalyticsService --output mocks
 
-type AnalyticsService interface {
-	TrackURLAccess(code, ip, userAgent string) error
-	GetURLStats(code string) (db.URLStats, error)
-	GetAnalytics(code string, startDate, endDate time.Time) ([]db.URLAccess, error)
+// URLAccess represents a URL access record
+type URLAccess struct {
+	AccessedAt  time.Time `json:"accessed_at"`
+	IPAddress   string    `json:"ip_address"`
+	UserAgent   string    `json:"user_agent"`
+	Referrer    string    `json:"referrer"`
+	CountryCode string    `json:"country_code"`
 }
 
+
+
+// AnalyticsService handles URL analytics
+type AnalyticsService interface {
+	TrackURLAccess(code, ip, userAgent string) error
+	GetURLStats(code string) (URLStats, error)
+	GetAnalytics(code string, startDate, endDate time.Time) ([]URLAccess, error)
+}
+
+// analyticsService implements AnalyticsService
 type analyticsService struct {
 	db *sql.DB
 }
 
 // NewAnalyticsService creates a new analytics service
-func NewAnalyticsService(db *sql.DB) *analyticsService {
+func NewAnalyticsService(db *sql.DB) AnalyticsService {
 	return &analyticsService{db: db}
 }
 
 // TrackURLAccess records a URL access event
 func (s *analyticsService) TrackURLAccess(code, ip, userAgent string) error {
 	_, err := s.db.Exec(
-		"INSERT INTO shortener.analytics (url_id, ip_address, user_agent) VALUES ((SELECT id FROM shortener.urls WHERE short_code = $1), $2, $3)",
-		code,
-		ip,
-		userAgent,
+		"INSERT INTO analytics (code, ip, user_agent, timestamp) VALUES (?, ?, ?, ?)",
+		code, ip, userAgent, time.Now(),
 	)
 	return err
 }
 
 // GetURLStats retrieves statistics for a URL
-func (s *analyticsService) GetURLStats(code string) (db.URLStats, error) {
-	var stats db.URLStats
+func (s *analyticsService) GetURLStats(code string) (URLStats, error) {
+	var stats URLStats
 	row := s.db.QueryRow(
-		"SELECT click_count, created_at, metadata FROM shortener.urls WHERE short_code = $1",
+		"SELECT code, original_url, clicks, last_access FROM urls WHERE code = ?",
 		code,
 	)
 
-	if err := row.Scan(&stats.ClickCount, &stats.CreatedAt, &stats.Metadata); err != nil {
-		return db.URLStats{}, err
+	if err := row.Scan(&stats.Code, &stats.OriginalURL, &stats.Clicks, &stats.LastAccess); err != nil {
+		return URLStats{}, err
 	}
 
 	return stats, nil
 }
 
 // GetAnalytics retrieves detailed access analytics for a URL
-func (s *analyticsService) GetAnalytics(code string, startDate, endDate time.Time) ([]db.URLAccess, error) {
+func (s *analyticsService) GetAnalytics(code string, startDate, endDate time.Time) ([]URLAccess, error) {
 	rows, err := s.db.Query(
-		"SELECT accessed_at, ip_address, user_agent, referrer, country_code FROM shortener.analytics WHERE url_id = (SELECT id FROM shortener.urls WHERE short_code = $1) AND accessed_at BETWEEN $2 AND $3 ORDER BY accessed_at DESC",
-		code,
-		startDate,
-		endDate,
+		"SELECT accessed_at, ip_address, user_agent, referrer, country_code FROM analytics WHERE code = ? AND accessed_at BETWEEN ? AND ? ORDER BY accessed_at DESC",
+		code, startDate, endDate,
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var accesses []db.URLAccess
+	var accesses []URLAccess
 	for rows.Next() {
-		var access db.URLAccess
+		var access URLAccess
 		if err := rows.Scan(
 			&access.AccessedAt,
 			&access.IPAddress,

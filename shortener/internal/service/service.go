@@ -6,15 +6,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rusik69/shortener/internal/db"
 )
 
-// Service represents the main service interface
-//go:generate mockery --name Service --output mocks
 
+
+// Service defines the interface for URL shortening operations
 type Service interface {
 	CreateShortURL(originalURL string) (string, error)
-	GetURLStats(code string) (db.URLStats, error)
+	GetURLStats(code string) (URLStats, error)
 	RedirectURL(code, ip, userAgent string) (string, error)
 }
 
@@ -23,94 +22,68 @@ type service struct {
 }
 
 // NewService creates a new service instance
-func NewService(db *sql.DB) *service {
+func NewService(db *sql.DB) Service {
 	return &service{db: db}
 }
 
-// InitDatabase initializes the database connection
-func InitDatabase() (*sql.DB, error) {
-	dsn := "postgresql://postgres:postgres@localhost:5432/shortener?sslmode=disable"
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, err
-	}
-
-	return db, nil
-}
-
-// CreateShortURL creates a new shortened URL
 func (s *service) CreateShortURL(originalURL string) (string, error) {
-	// Generate a unique short code
-	shortCode := generateShortCode()
-
-	// Insert into database
+	shortCode := uuid.New().String()[:8]
+	
 	_, err := s.db.Exec(
-		"INSERT INTO shortener.urls (original_url, short_code) VALUES ($1, $2)",
-		originalURL,
-		shortCode,
+		"INSERT INTO urls (short_code, original_url, created_at) VALUES ($1, $2, $3)",
+		shortCode, originalURL, time.Now(),
 	)
 	if err != nil {
 		return "", err
 	}
-
-	return fmt.Sprintf("http://localhost:8080/%s", shortCode), nil
+	
+	return shortCode, nil
 }
 
-// GetURLStats retrieves statistics for a URL
-func (s *service) GetURLStats(code string) (db.URLStats, error) {
-	var stats db.URLStats
+func (s *service) GetURLStats(code string) (URLStats, error) {
+	var stats URLStats
 	row := s.db.QueryRow(
-		"SELECT click_count, created_at, metadata FROM shortener.urls WHERE short_code = $1",
+		"SELECT short_code, original_url, click_count, created_at FROM urls WHERE short_code = $1",
 		code,
 	)
 
-	if err := row.Scan(&stats.ClickCount, &stats.CreatedAt, &stats.Metadata); err != nil {
-		return db.URLStats{}, err
+	if err := row.Scan(&stats.Code, &stats.OriginalURL, &stats.Clicks, &stats.LastAccess); err != nil {
+		return URLStats{}, err
 	}
 
 	return stats, nil
 }
 
-// RedirectURL handles URL redirection and tracks analytics
 func (s *service) RedirectURL(code, ip, userAgent string) (string, error) {
 	var originalURL string
 	row := s.db.QueryRow(
-		"SELECT original_url, click_count FROM shortener.urls WHERE short_code = $1",
+		"SELECT original_url FROM urls WHERE short_code = $1",
 		code,
 	)
 
-	if err := row.Scan(&originalURL, &stats.ClickCount); err != nil {
-		return "", err
-	}
-
-	// Update click count
-	_, err := s.db.Exec(
-		"UPDATE shortener.urls SET click_count = click_count + 1 WHERE short_code = $1",
-		code,
-	)
-	if err != nil {
+	if err := row.Scan(&originalURL); err != nil {
 		return "", err
 	}
 
 	// Record analytics
-	_, err = s.db.Exec(
-		"INSERT INTO shortener.analytics (url_id, ip_address, user_agent) VALUES ((SELECT id FROM shortener.urls WHERE short_code = $1), $2, $3)",
+	_, err := s.db.Exec(
+		"INSERT INTO analytics (url_id, ip_address, user_agent, accessed_at) VALUES ((SELECT id FROM urls WHERE short_code = $1), $2, $3, $4)",
 		code,
 		ip,
 		userAgent,
+		time.Now(),
 	)
 	if err != nil {
-		return "", err
+		// Don't fail the redirect if analytics fails
+		fmt.Printf("Failed to record analytics: %v\n", err)
 	}
 
 	return originalURL, nil
 }
 
+
+
 // generateShortCode generates a unique short code
 func generateShortCode() string {
-	return uuid.New().String()[:8] // Simplified for example
+	return uuid.New().String()[:8]
 }

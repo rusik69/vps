@@ -2,14 +2,13 @@ package api
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rusik69/shortener/internal/service"
 )
 
 // SetupRoutes configures all API routes
-func SetupRoutes(r *gin.Engine, svc *service.Service) {
+func SetupRoutes(r *gin.Engine, svc service.Service) {
 	api := r.Group("/api")
 	{
 		api.POST("/shorten", createShortURL(svc))
@@ -19,7 +18,7 @@ func SetupRoutes(r *gin.Engine, svc *service.Service) {
 }
 
 // createShortURL handles URL shortening requests
-func createShortURL(svc *service.Service) gin.HandlerFunc {
+func createShortURL(svc service.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
 			URL string `json:"url"`
@@ -43,7 +42,7 @@ func createShortURL(svc *service.Service) gin.HandlerFunc {
 }
 
 // getURLStats retrieves statistics for a short URL
-func getURLStats(svc *service.Service) gin.HandlerFunc {
+func getURLStats(svc service.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		code := c.Param("code")
 		stats, err := svc.GetURLStats(code)
@@ -57,7 +56,7 @@ func getURLStats(svc *service.Service) gin.HandlerFunc {
 }
 
 // redirectURL handles URL redirection
-func redirectURL(svc *service.Service) gin.HandlerFunc {
+func redirectURL(svc service.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		code := c.Param("code")
 		originalURL, err := svc.RedirectURL(code, c.ClientIP(), c.Request.UserAgent())

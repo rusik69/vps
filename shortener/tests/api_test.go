@@ -1,43 +1,76 @@
 package tests
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rusik69/vps/url-shortener/internal/api"
-	"github.com/rusik69/vps/url-shortener/internal/db"
+	"github.com/rusik69/shortener/internal/api"
+	"github.com/rusik69/shortener/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAPIEndpoints(t *testing.T) {
-	// Setup test database and repository
-	db, err := sql.Open("postgres", "postgresql://testuser:testpass@localhost:5432/testdb?sslmode=disable")
-	if err != nil {
-		t.Fatalf("Failed to connect to test database: %v", err)
-	}
-	defer db.Close()
-
-	repo := db.NewRepository(db)
+	// Setup test service using mock
+	service := &service.MockService{}
 
 	// Setup Gin router
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	api.InitRoutes(r)
+	api.SetupRoutes(r, service)
 
 	// Test Shorten URL endpoint
 	t.Run("Shorten URL", func(t *testing.T) {
-		req, _ := http.NewRequest("POST", "/api/shorten", strings.NewReader(`{
-			"url": "https://example.com",
-			"captcha": "test123"
-		}`))
+		reqBody := map[string]string{
+			"url":     "https://example.com",
+			"captcha": "test123",
+		}
+		body, _ := json.Marshal(reqBody)
+		
+		req, _ := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		
 		rec := httptest.NewRecorder()
 		r.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
+		
+		var response map[string]string
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Contains(t, response, "shortUrl")
+	})
+
+	// Test Get URL endpoint
+	t.Run("Get URL", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/abc123", nil)
+		
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusFound, rec.Code)
+	})
+
+	// Test Invalid Shorten URL
+	t.Run("Invalid URL", func(t *testing.T) {
+		reqBody := map[string]string{
+			"url":     "invalid-url",
+			"captcha": "test123",
+		}
+		body, _ := json.Marshal(reqBody)
+		
+		req, _ := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
 		var response map[string]interface{}
 		json.Unmarshal(rec.Body.Bytes(), &response)
 		assert.Contains(t, response, "shortUrl")

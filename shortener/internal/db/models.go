@@ -72,3 +72,39 @@ func NewRepository(db *sql.DB) Repository {
 type repository struct {
 	db *sql.DB
 }
+
+func (r *repository) CreateShortURL(shortCode, originalURL string, userID *int64, expiresAt *time.Time) (*ShortURL, error) {
+	return &ShortURL{}, nil
+}
+
+func (r *repository) GetShortURLByCode(shortCode string) (*ShortURL, error) {
+	return &ShortURL{}, nil
+}
+
+func (r *repository) IncrementClickCount(shortURLID int64) error {
+	return nil
+}
+
+func (r *repository) GetClicks(shortURLID int64, limit int) ([]Click, error) {
+	return []Click{}, nil
+}
+
+func (r *repository) CreateClick(shortURLID int64, userAgent, ipAddress, referrer string) error {
+	return nil
+}
+
+func (r *repository) GetOrCreateRateLimit(ipAddress string) (*RateLimit, error) {
+	return &RateLimit{}, nil
+}
+
+func (r *repository) UpdateRateLimit(rateLimit *RateLimit) error {
+	return nil
+}
+
+func (r *repository) CreateCaptchaAttempt(ipAddress string, success bool) error {
+	return nil
+}
+
+func (r *repository) GetRecentCaptchaAttempts(ipAddress string, limit int) ([]CaptchaAttempt, error) {
+	return []CaptchaAttempt{}, nil
+}

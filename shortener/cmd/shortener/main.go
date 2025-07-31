@@ -1,47 +1,56 @@
 package main
 
 import (
+	"database/sql"
 	"log"
-	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rusik69/shortener/internal/api"
-	"github.com/rusik69/shortener/internal/middleware"
 	"github.com/rusik69/shortener/internal/service"
 )
 
-func main() {
-	// Initialize dependencies
-	db, err := service.InitDatabase()
+// InitDatabase initializes the database connection
+func InitDatabase() (*sql.DB, error) {
+	dsn := "postgresql://postgres:postgres@localhost:5432/shortener?sslmode=disable"
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		return nil, err
 	}
-	service := service.NewService(db)
-
-	// Create router
-	router := gin.Default()
-
-	// Middleware
-	router.Use(middleware.RateLimiter())
-	router.Use(middleware.CaptchaMiddleware())
-
-	// API Routes
-	api.SetupRoutes(router, service)
-
-	// Web Routes
-	setupWebRoutes(router)
-
-	// Start server
-	if err := router.Run(":8080"); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	
+	if err := db.Ping(); err != nil {
+		return nil, err
 	}
+	
+	return db, nil
 }
 
-func setupWebRoutes(r *gin.Engine) {
-	r.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", nil)
-	})
-	r.GET("/stats", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "stats.html", nil)
-	})
+func main() {
+	// Initialize database
+	db, err := InitDatabase()
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+	defer db.Close()
+
+	// Create service
+	service := service.NewService(db)
+
+	// Create Gin router
+	router := gin.Default()
+
+	// Setup routes
+	api.SetupRoutes(router, service)
+
+	// Start server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("Server starting on port %s", port)
+	if err := router.Run(":" + port); err != nil {
+		log.Fatal("Failed to start server:", err)
+	}
 }
