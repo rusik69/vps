@@ -18,10 +18,13 @@ jobs:
           go-version: 1.21
 
       - name: Install dependencies
-        run: make deps
+        run: go mod download
 
-      - name: Run CI pipeline
-        run: make ci
+      - name: Run tests
+        run: make test
+
+      - name: Run lint
+        run: make lint
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
@@ -45,7 +48,9 @@ jobs:
         run: make build
 
       - name: Build Docker image
-        run: make docker-build
+        run: docker build -t $(DOCKER_IMAGE) .
+        env:
+          DOCKER_IMAGE: url-shortener:latest
 
       - name: Login to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
@@ -57,9 +62,9 @@ jobs:
 
       - name: Push Docker image
         if: github.ref == 'refs/heads/main'
-        run: make docker-push
-        env:
-          DOCKER_REGISTRY: ghcr.io/${{ github.repository_owner }}
+        run: |
+          docker tag url-shortener:latest ghcr.io/${{ github.repository_owner }}/url-shortener:latest
+          docker push ghcr.io/${{ github.repository_owner }}/url-shortener:latest
 
   deploy:
     needs: build
