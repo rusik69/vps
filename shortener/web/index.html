@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@tailwindcss/forms@0.5.6/dist/index.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-3xl font-bold text-center mb-6">URL Shortener</h1>
+            
+            <form id="shortenForm" class="space-y-4">
+                <div>
+                    <label for="url" class="block text-sm font-medium text-gray-700">Original URL</label>
+                    <div class="mt-1 relative rounded-md shadow-sm">
+                        <input type="url" id="url" name="url" 
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                               placeholder="https://example.com" required>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="custom" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="custom" class="ml-2 block text-sm text-gray-900">Custom Code</label>
+                    </div>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        Shorten URL
+                    </button>
+                </div>
+            </form>
+
+            <div id="captcha" class="hidden mt-4">
+                <div class="flex items-center justify-center">
+                    <div id="recaptcha-container"></div>
+                </div>
+            </div>
+
+            <div id="result" class="hidden mt-4">
+                <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded relative" role="alert">
+                    <span class="block sm:inline">Your shortened URL is ready!</span>
+                    <div class="mt-2">
+                        <input type="text" id="shortUrl" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" readonly>
+                        <button id="copyButton" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            Copy URL
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script>
+    <script src="app.js"></script>
+</body>
+</html>
