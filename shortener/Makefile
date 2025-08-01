@@ -2,6 +2,8 @@
 
 # Variables
 APP_NAME := url-shortener
+DOCKER_IMAGE ?= $(APP_NAME)
+DOCKER_REGISTRY ?= localhost:5000
 
 # Default target
 .DEFAULT_GOAL := help
