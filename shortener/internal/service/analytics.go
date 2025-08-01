@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"log"
 	"time"
 )
 
@@ -68,7 +69,11 @@ func (s *analyticsService) GetAnalytics(code string, startDate, endDate time.Tim
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Error closing rows: %v", err)
+		}
+	}()
 
 	var accesses []URLAccess
 	for rows.Next() {

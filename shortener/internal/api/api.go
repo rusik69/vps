@@ -15,6 +15,11 @@ func SetupRoutes(r *gin.Engine, svc service.Service) {
 		api.GET("/stats/:code", getURLStats(svc))
 		api.GET("/:code", redirectURL(svc))
 	}
+	
+	// Health check endpoint
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
 }
 
 // createShortURL handles URL shortening requests

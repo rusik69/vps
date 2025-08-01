@@ -13,13 +13,7 @@ const (
 	MaxRequestsPerHour   = 1000
 )
 
-// RateLimiter implements rate limiting middleware
-type RateLimiter struct {
-	mu       sync.RWMutex
-	requests map[string][]time.Time
-	window   time.Duration
-	maxReq   int
-}
+
 
 // RateLimitMiddleware limits requests per IP
 func RateLimitMiddleware() gin.HandlerFunc {

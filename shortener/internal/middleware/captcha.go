@@ -8,16 +8,12 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/rusik69/shortener/internal/db"
 )
 
-var (
-	captchaStore = make(map[string]string)
-	captchaMutex sync.RWMutex
-)
+// Captcha storage and validation variables
 
 // CaptchaMiddleware handles captcha validation
 func CaptchaMiddleware(repo db.Repository) func(http.Handler) http.Handler {
@@ -54,7 +50,7 @@ func GenerateCaptcha(repo db.Repository) (string, []byte, error) {
 
 // Helper functions
 func generateRandomString(length int) string {
-	rand.Seed(time.Now().UnixNano())
+	// rand.Seed is deprecated, using crypto/rand or math/rand with NewSource is preferred
 	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	result := make([]byte, length)
 	for i := range result {
@@ -94,65 +90,4 @@ func generateCaptchaImage(text string) *image.RGBA {
 	}
 	
 	return img
-}
-
-func line(img *image.RGBA, x1, y1, x2, y2 int, color color.Color) {
-	dx := x2 - x1
-	dy := y2 - y1
-
-	if dx == 0 {
-		for y := y1; y <= y2; y++ {
-			img.Set(x1, y, color)
-		}
-		return
-	}
-
-	if dy == 0 {
-		for x := x1; x <= x2; x++ {
-			img.Set(x, y1, color)
-		}
-		return
-	}
-
-	dx1 := abs(dx)
-	dy1 := abs(dy)
-
-	if dx1 >= dy1 {
-		xstep := 1
-		if dx < 0 {
-			xstep = -1
-		}
-		y := y1
-		d := dy1 - (dx1 / 2)
-		for x := x1; x != x2; x += xstep {
-			img.Set(x, y, color)
-			if d >= 0 {
-				y += 1
-				d -= dx1
-			}
-			d += dy1
-		}
-	} else {
-		ystep := 1
-		if dy < 0 {
-			ystep = -1
-		}
-		x := x1
-		d := dx1 - (dy1 / 2)
-		for y := y1; y != y2; y += ystep {
-			img.Set(x, y, color)
-			if d >= 0 {
-				x += 1
-				d -= dy1
-			}
-			d += dx1
-		}
-	}
-}
-
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
 }

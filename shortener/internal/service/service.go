@@ -80,10 +80,3 @@ func (s *service) RedirectURL(code, ip, userAgent string) (string, error) {
 
 	return originalURL, nil
 }
-
-
-
-// generateShortCode generates a unique short code
-func generateShortCode() string {
-	return uuid.New().String()[:8]
-}
