@@ -1,4 +1,4 @@
-name: Shortener Build
+name: Shortener Build and Deploy
 
 on:
   push:
@@ -21,11 +21,13 @@ jobs:
     - name: Build Shortener
       run: |
         go build -v ./...
+        go test -v ./...
       working-directory: shortener
 
-    - name: Run Shortener Tests
+    - name: Run Linting
       run: |
-        go test -v ./...
+        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+        golangci-lint run ./...
       working-directory: shortener
 
     - name: Build Shortener Docker Image
@@ -33,9 +35,43 @@ jobs:
         docker build -t ${{ secrets.DOCKER_REGISTRY }}/url-shortener:latest .
       working-directory: shortener
 
-    - name: Push Shortener to Docker Hub
-      if: github.ref == 'refs/heads/main'
+  deploy:
+    runs-on: ubuntu-latest
+    needs: shortener-build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -t rsa ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+        chmod 644 ~/.ssh/known_hosts
+
+    - name: Push to Docker Hub
       run: |
         docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+        docker build -t ${{ secrets.DOCKER_REGISTRY }}/url-shortener:latest .
         docker push ${{ secrets.DOCKER_REGISTRY }}/url-shortener:latest
       working-directory: shortener
+
+    - name: Copy deployment files
+      run: |
+        scp -i ~/.ssh/id_rsa docker-compose.yml url-shortener@${{ secrets.VPS_HOST }}:~/url-shortener/
+        scp -i ~/.ssh/id_rsa docker-compose.prod.yml url-shortener@${{ secrets.VPS_HOST }}:~/url-shortener/
+      working-directory: shortener
+
+    - name: Deploy to VPS
+      run: |
+        ssh -i ~/.ssh/id_rsa url-shortener@${{ secrets.VPS_HOST }} "cd ~/url-shortener && docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull && docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d"
+
+    - name: Verify deployment
+      run: |
+        ssh -i ~/.ssh/id_rsa url-shortener@${{ secrets.VPS_HOST }} "curl -s http://localhost:8080 | grep -q 'URL Shortener'"
+
+    - name: Cleanup old containers
+      run: |
+        ssh -i ~/.ssh/id_rsa url-shortener@${{ secrets.VPS_HOST }} "docker system prune -f"
