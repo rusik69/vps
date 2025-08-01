@@ -24,7 +24,7 @@ COPY --from=builder /app/url-shortener .
 
 # Copy static assets
 COPY internal/web/templates ./templates
-COPY internal/web/styles ./styles
+COPY internal/web/styles.css ./styles.css
 COPY internal/web/main.js ./js
 
 # Expose port
