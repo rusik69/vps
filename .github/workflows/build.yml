@@ -25,10 +25,10 @@ jobs:
       working-directory: shortener
 
     - name: Run Linting
-      run: |
-        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-        golangci-lint run ./...
-      working-directory: shortener
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+        working-directory: shortener
 
     - name: Build Shortener Docker Image
       run: |
