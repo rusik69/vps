@@ -32,7 +32,7 @@ jobs:
 
     - name: Build Shortener Docker Image
       run: |
-        docker build -t ${{ secrets.DOCKER_REGISTRY }}/url-shortener:latest .
+        docker build -t ${{ secrets.DOCKER_REGISTRY || 'localhost:5000' }}/url-shortener:latest .
       working-directory: shortener
 
   deploy:
