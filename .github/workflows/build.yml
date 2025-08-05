@@ -58,15 +58,10 @@ jobs:
         docker push ${{ secrets.DOCKER_REGISTRY }}/url-shortener:latest
       working-directory: shortener
 
-    - name: Copy deployment files
-      run: |
-        scp -i ~/.ssh/id_rsa docker-compose.yml url-shortener@${{ secrets.VPS_HOST }}:~/url-shortener/
-        scp -i ~/.ssh/id_rsa docker-compose.prod.yml url-shortener@${{ secrets.VPS_HOST }}:~/url-shortener/
-      working-directory: shortener
-
     - name: Deploy to VPS
       run: |
-        ssh -i ~/.ssh/id_rsa url-shortener@${{ secrets.VPS_HOST }} "cd ~/url-shortener && docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull && docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d"
+        make deploy-prod
+      working-directory: shortener
 
     - name: Verify deployment
       run: |

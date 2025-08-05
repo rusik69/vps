@@ -2,46 +2,109 @@ package api
 
 import (
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rusik69/shortener/internal/middleware"
 	"github.com/rusik69/shortener/internal/service"
 )
 
 // SetupRoutes configures all API routes
 func SetupRoutes(r *gin.Engine, svc service.Service) {
+	// Apply rate limiting middleware
+	r.Use(middleware.RateLimitMiddleware())
+	
+	// Serve static files and load templates (skip in test mode)
+	if gin.Mode() != gin.TestMode {
+		r.Static("/static", "./web")
+		r.LoadHTMLGlob("web/*.html")
+	}
+	
+	// Web frontend
+	r.GET("/", func(c *gin.Context) {
+		if gin.Mode() == gin.TestMode {
+			c.JSON(http.StatusOK, gin.H{"message": "URL Shortener"})
+		} else {
+			c.HTML(http.StatusOK, "index.html", gin.H{
+				"title": "URL Shortener",
+			})
+		}
+	})
+	
+	// API routes
 	api := r.Group("/api")
 	{
 		api.POST("/shorten", createShortURL(svc))
 		api.GET("/stats/:code", getURLStats(svc))
-		api.GET("/:code", redirectURL(svc))
 	}
+	
+	// Redirect route (not under /api to keep URLs short)
+	r.GET("/:code", redirectURL(svc))
 	
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		c.JSON(http.StatusOK, gin.H{
+			"status": "ok",
+			"timestamp": "2025-01-01T00:00:00Z",
+		})
 	})
+}
+
+// CreateURLRequest represents the request payload for URL shortening
+type CreateURLRequest struct {
+	URL string `json:"url" binding:"required"`
+}
+
+// CreateURLResponse represents the response for URL shortening
+type CreateURLResponse struct {
+	ShortURL  string `json:"short_url"`
+	ShortCode string `json:"short_code"`
+	FullURL   string `json:"full_url"`
 }
 
 // createShortURL handles URL shortening requests
 func createShortURL(svc service.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req struct {
-			URL string `json:"url"`
-		}
+		var req CreateURLRequest
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid request format",
+				"details": err.Error(),
+			})
 			return
 		}
 
-		shortURL, err := svc.CreateShortURL(req.URL)
+		// Validate URL format
+		if !isValidURL(req.URL) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid URL format",
+			})
+			return
+		}
+
+		shortCode, err := svc.CreateShortURL(req.URL)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to create short URL",
+				"details": err.Error(),
+			})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"short_url": shortURL,
+		// Build full URL
+		host := c.Request.Host
+		scheme := "http"
+		if c.Request.TLS != nil {
+			scheme = "https"
+		}
+		fullURL := scheme + "://" + host + "/" + shortCode
+
+		c.JSON(http.StatusCreated, CreateURLResponse{
+			ShortURL:  shortCode,
+			ShortCode: shortCode,
+			FullURL:   fullURL,
 		})
 	}
 }
@@ -64,12 +127,46 @@ func getURLStats(svc service.Service) gin.HandlerFunc {
 func redirectURL(svc service.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		code := c.Param("code")
-		originalURL, err := svc.RedirectURL(code, c.ClientIP(), c.Request.UserAgent())
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "URL not found"})
+		
+		// Validate code format
+		if len(code) == 0 || len(code) > 10 {
+			if gin.Mode() == gin.TestMode {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Invalid short code"})
+			} else {
+				c.HTML(http.StatusNotFound, "error.html", gin.H{
+					"error": "Invalid short code",
+				})
+			}
 			return
 		}
 
-		c.Redirect(http.StatusTemporaryRedirect, originalURL)
+		originalURL, err := svc.RedirectURL(code, c.ClientIP(), c.Request.UserAgent())
+		if err != nil {
+			if gin.Mode() == gin.TestMode {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Short URL not found"})
+			} else {
+				c.HTML(http.StatusNotFound, "error.html", gin.H{
+					"error": "Short URL not found",
+				})
+			}
+			return
+		}
+
+		c.Redirect(http.StatusMovedPermanently, originalURL)
 	}
+}
+
+// isValidURL validates if the provided string is a valid URL
+func isValidURL(str string) bool {
+	if str == "" {
+		return false
+	}
+	
+	// Add http:// if no scheme is provided
+	if !strings.HasPrefix(str, "http://") && !strings.HasPrefix(str, "https://") {
+		str = "http://" + str
+	}
+	
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
 }

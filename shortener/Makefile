@@ -52,16 +52,16 @@ docker-push: docker-build ## Push Docker image to registry
 
 # Docker Compose targets
 .PHONY: up
-up: ## Start services with docker-compose
-	docker-compose up -d
+up: ## Start services with docker compose
+	docker compose up -d
 
 .PHONY: down
-down: ## Stop services with docker-compose
-	docker-compose down
+down: ## Stop services with docker compose
+	docker compose down
 
 .PHONY: logs
-logs: ## Show docker-compose logs
-	docker-compose logs -f
+logs: ## Show docker compose logs
+	docker compose logs -f
 
 .PHONY: restart
 restart: down up ## Restart services
@@ -70,12 +70,17 @@ restart: down up ## Restart services
 .PHONY: db-migrate
 db-migrate: ## Run database migrations
 	@echo "Running database migrations..."
-	# Add migration command here when implemented
+	@go run cmd/migrate/main.go migrate
 
 .PHONY: db-seed
 db-seed: ## Seed database with test data
-	@echo "Seeding database..."
-	# Add seed command here when implemented
+	@echo "Seeding database with test data..."
+	@go run cmd/migrate/main.go seed
+
+.PHONY: db-reset
+db-reset: ## Reset database (drop and recreate)
+	@echo "Resetting database..."
+	@go run cmd/migrate/main.go reset
 
 # Cleanup targets
 .PHONY: clean
@@ -83,6 +88,21 @@ clean: ## Clean build artifacts
 	rm -rf bin/
 	rm -f coverage.out coverage.html
 	docker system prune -f
+
+.PHONY: test-integration
+test-integration: ## Run integration tests
+	@echo "Running integration tests..."
+	go test ./tests/... -v -tags=integration
+
+.PHONY: test-all
+test-all: test test-integration ## Run all tests
+	@echo "All tests completed"
+
+.PHONY: coverage
+coverage: ## Generate test coverage report
+	go test ./... -coverprofile=coverage.out
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
 
 .PHONY: clean-all
 clean-all: clean ## Clean everything including Docker images
@@ -92,6 +112,23 @@ clean-all: clean ## Clean everything including Docker images
 .PHONY: ci
 ci: deps check ## Run CI pipeline
 	@echo "CI pipeline completed successfully"
+
+.PHONY: deploy
+deploy: ## Deploy entire vps repo to msk.govno2.cloud
+	@echo "Deploying entire vps repo to msk.govno2.cloud..."
+	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
+	@echo "Syncing entire vps repo to root's home..."
+	sshpass -e rsync -avz --exclude-from=.gitignore ../ root@msk.govno2.cloud:~/
+	@echo "Building and starting services on msk.govno2.cloud..."
+	sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose build && docker compose up -d"
+	@echo "Deployment to msk.govno2.cloud completed successfully"
+
+.PHONY: stop
+stop: ## Stop services on msk.govno2.cloud
+	@echo "Stopping services on msk.govno2.cloud..."
+	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
+	@sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose down"
+	@echo "Services stopped successfully"
 
 .PHONY: release
 release: ci docker-build docker-push ## Build and release

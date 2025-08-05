@@ -13,7 +13,12 @@ const (
 	MaxRequestsPerHour   = 1000
 )
 
-
+var (
+	window   = time.Minute
+	maxReq   = MaxRequestsPerMinute
+	requests = make(map[string][]time.Time)
+	mu       sync.RWMutex
+)
 
 // RateLimitMiddleware limits requests per IP
 func RateLimitMiddleware() gin.HandlerFunc {
@@ -21,8 +26,6 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		ip := c.ClientIP()
 		
 		mu.Lock()
-		defer mu.Unlock()
-		
 		now := time.Now()
 		
 		// Clean old requests
@@ -38,6 +41,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		
 		// Check rate limit
 		if len(requests[ip]) >= maxReq {
+			mu.Unlock()
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Rate limit exceeded"})
 			c.Abort()
 			return
@@ -45,14 +49,8 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		
 		// Add current request
 		requests[ip] = append(requests[ip], now)
+		mu.Unlock()
 		
 		c.Next()
 	}
 }
-
-var (
-	window = time.Minute
-	maxReq = 10
-	requests = make(map[string][]time.Time)
-	mu       sync.RWMutex
-)
