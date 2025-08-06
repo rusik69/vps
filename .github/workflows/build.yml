@@ -45,11 +45,9 @@ jobs:
 
     - name: Set up SSH
       run: |
+        sudo apt-get update && sudo apt-get install -y sshpass
         mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -t rsa ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
-        chmod 644 ~/.ssh/known_hosts
 
     - name: Push to Docker Hub
       run: |
@@ -60,13 +58,7 @@ jobs:
 
     - name: Deploy to VPS
       run: |
-        make deploy-prod
+        make deploy
       working-directory: shortener
-
-    - name: Verify deployment
-      run: |
-        ssh -i ~/.ssh/id_rsa url-shortener@${{ secrets.VPS_HOST }} "curl -s http://localhost:8080 | grep -q 'URL Shortener'"
-
-    - name: Cleanup old containers
-      run: |
-        ssh -i ~/.ssh/id_rsa url-shortener@${{ secrets.VPS_HOST }} "docker system prune -f"
+      env:
+        SSHPASS: ${{ secrets.SSH_PASSWORD }}
