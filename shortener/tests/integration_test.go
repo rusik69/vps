@@ -35,11 +35,13 @@ func setupTestDB(t *testing.T) (*sql.DB, func()) {
 	}
 
 	cleanup := func() {
-		// Clean up test data
-		testDB.Exec("DELETE FROM clicks")
-		testDB.Exec("DELETE FROM short_urls")
-		testDB.Exec("DELETE FROM users")
-		testDB.Close()
+		// Clean up test data - ignore errors as these are cleanup operations
+		_, _ = testDB.Exec("DELETE FROM clicks")
+		_, _ = testDB.Exec("DELETE FROM short_urls")
+		_, _ = testDB.Exec("DELETE FROM users")
+		if err := testDB.Close(); err != nil {
+			t.Logf("Error closing test database: %v", err)
+		}
 	}
 
 	return testDB, cleanup
@@ -65,9 +67,15 @@ func TestIntegrationCreateShortURL(t *testing.T) {
 	reqBody := map[string]string{
 		"url": "https://example.com",
 	}
-	jsonBody, _ := json.Marshal(reqBody)
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("Failed to marshal request body: %v", err)
+	}
 
-	req, _ := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	
 	w := httptest.NewRecorder()
@@ -78,7 +86,9 @@ func TestIntegrationCreateShortURL(t *testing.T) {
 	}
 
 	var response map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 
 	if response["short_code"] == nil {
 		t.Error("Expected short_code in response")
@@ -99,9 +109,15 @@ func TestIntegrationInvalidURL(t *testing.T) {
 	reqBody := map[string]string{
 		"url": "not-a-valid-url",
 	}
-	jsonBody, _ := json.Marshal(reqBody)
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("Failed to marshal request body: %v", err)
+	}
 
-	req, _ := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	
 	w := httptest.NewRecorder()
@@ -122,20 +138,31 @@ func TestIntegrationRedirectFlow(t *testing.T) {
 	reqBody := map[string]string{
 		"url": "https://example.com",
 	}
-	jsonBody, _ := json.Marshal(reqBody)
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("Failed to marshal request body: %v", err)
+	}
 
-	req, _ := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	var response map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 	shortCode := response["short_code"].(string)
 
 	// Now test the redirect
-	req, _ = http.NewRequest("GET", "/"+shortCode, nil)
+	req, err = http.NewRequest("GET", "/"+shortCode, nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -159,20 +186,31 @@ func TestIntegrationGetStats(t *testing.T) {
 	reqBody := map[string]string{
 		"url": "https://example.com",
 	}
-	jsonBody, _ := json.Marshal(reqBody)
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("Failed to marshal request body: %v", err)
+	}
 
-	req, _ := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	var response map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 	shortCode := response["short_code"].(string)
 
 	// Test getting stats
-	req, _ = http.NewRequest("GET", "/api/stats/"+shortCode, nil)
+	req, err = http.NewRequest("GET", "/api/stats/"+shortCode, nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -181,7 +219,9 @@ func TestIntegrationGetStats(t *testing.T) {
 	}
 
 	var statsResponse map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &statsResponse)
+	if err := json.Unmarshal(w.Body.Bytes(), &statsResponse); err != nil {
+		t.Fatalf("Failed to unmarshal stats response: %v", err)
+	}
 
 	if statsResponse["code"] != shortCode {
 		t.Errorf("Expected code %s, got %v", shortCode, statsResponse["code"])
@@ -198,7 +238,10 @@ func TestIntegrationHealthCheck(t *testing.T) {
 
 	router := setupTestRouter(testDB)
 
-	req, _ := http.NewRequest("GET", "/health", nil)
+	req, err := http.NewRequest("GET", "/health", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -207,7 +250,9 @@ func TestIntegrationHealthCheck(t *testing.T) {
 	}
 
 	var response map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &response)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal health response: %v", err)
+	}
 
 	if response["status"] != "ok" {
 		t.Errorf("Expected status ok, got %v", response["status"])
@@ -224,11 +269,17 @@ func TestIntegrationRateLimiting(t *testing.T) {
 	reqBody := map[string]string{
 		"url": "https://example.com",
 	}
-	jsonBody, _ := json.Marshal(reqBody)
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("Failed to marshal request body: %v", err)
+	}
 
 	// Make requests up to the rate limit
 	for i := 0; i < 100; i++ {
-		req, _ := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(jsonBody))
+		req, err := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(jsonBody))
+		if err != nil {
+			t.Fatalf("Failed to create request: %v", err)
+		}
 		req.Header.Set("Content-Type", "application/json")
 		req.RemoteAddr = "127.0.0.1:12345" // Set consistent IP
 		
@@ -256,7 +307,10 @@ func TestIntegrationNotFound(t *testing.T) {
 	router := setupTestRouter(testDB)
 
 	// Test accessing non-existent short code
-	req, _ := http.NewRequest("GET", "/nonexistent", nil)
+	req, err := http.NewRequest("GET", "/nonexistent", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -265,7 +319,10 @@ func TestIntegrationNotFound(t *testing.T) {
 	}
 
 	// Test getting stats for non-existent code
-	req, _ = http.NewRequest("GET", "/api/stats/nonexistent", nil)
+	req, err = http.NewRequest("GET", "/api/stats/nonexistent", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 

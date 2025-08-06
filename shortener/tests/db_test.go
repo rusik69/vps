@@ -14,7 +14,7 @@ import (
 func TestRepositoryCreateShortURL(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	repo := db.NewRepository(database)
 
@@ -34,7 +34,7 @@ func TestRepositoryCreateShortURL(t *testing.T) {
 func TestRepositoryGetShortURLByCode(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	repo := db.NewRepository(database)
 
@@ -58,7 +58,7 @@ func TestRepositoryGetShortURLByCode(t *testing.T) {
 func TestRepositoryGetShortURLByCodeNotFound(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	repo := db.NewRepository(database)
 
@@ -76,7 +76,7 @@ func TestRepositoryGetShortURLByCodeNotFound(t *testing.T) {
 func TestRepositoryIncrementClickCount(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	repo := db.NewRepository(database)
 
@@ -93,7 +93,7 @@ func TestRepositoryIncrementClickCount(t *testing.T) {
 func TestRepositoryCreateClick(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	repo := db.NewRepository(database)
 
@@ -110,7 +110,7 @@ func TestRepositoryCreateClick(t *testing.T) {
 func TestRepositoryGetOrCreateRateLimit(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	repo := db.NewRepository(database)
 
@@ -133,7 +133,7 @@ func TestRepositoryGetOrCreateRateLimit(t *testing.T) {
 func TestRepositoryGetOrCreateRateLimitNew(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	repo := db.NewRepository(database)
 
@@ -156,7 +156,7 @@ func TestRepositoryGetOrCreateRateLimitNew(t *testing.T) {
 func TestRepositoryUpdateRateLimit(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	repo := db.NewRepository(database)
 
@@ -180,7 +180,7 @@ func TestRepositoryUpdateRateLimit(t *testing.T) {
 func TestRepositoryCreateCaptchaAttempt(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	repo := db.NewRepository(database)
 
@@ -197,7 +197,7 @@ func TestRepositoryCreateCaptchaAttempt(t *testing.T) {
 func TestRepositoryGetClicks(t *testing.T) {
 	database, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	repo := db.NewRepository(database)
 

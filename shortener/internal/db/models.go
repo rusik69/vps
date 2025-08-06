@@ -29,11 +29,11 @@ type Click struct {
 
 // RateLimit represents a rate limit entry
 type RateLimit struct {
-	ID        int64     `json:"id"`
-	IPAddress string    `json:"ip_address"`
-	RequestCount int64   `json:"request_count"`
-	ResetAt   time.Time `json:"reset_at"`
-	CreatedAt time.Time `json:"created_at"`
+	ID           int64     `json:"id"`
+	IPAddress    string    `json:"ip_address"`
+	RequestCount int64     `json:"request_count"`
+	ResetAt      time.Time `json:"reset_at"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // CaptchaAttempt represents a captcha attempt
@@ -124,7 +124,9 @@ func (r *repository) GetClicks(shortURLID int64, limit int) ([]Click, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var clicks []Click
 	for rows.Next() {
@@ -135,7 +137,10 @@ func (r *repository) GetClicks(shortURLID int64, limit int) ([]Click, error) {
 		}
 		clicks = append(clicks, click)
 	}
-	return clicks, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return clicks, nil
 }
 
 func (r *repository) CreateClick(shortURLID int64, userAgent, ipAddress, referrer string) error {
@@ -199,7 +204,9 @@ func (r *repository) GetRecentCaptchaAttempts(ipAddress string, limit int) ([]Ca
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var attempts []CaptchaAttempt
 	for rows.Next() {
@@ -210,5 +217,8 @@ func (r *repository) GetRecentCaptchaAttempts(ipAddress string, limit int) ([]Ca
 		}
 		attempts = append(attempts, attempt)
 	}
-	return attempts, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return attempts, nil
 }
