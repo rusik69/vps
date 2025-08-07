@@ -1,0 +1,87 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test and Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.23
+
+    - name: Install dependencies
+      run: go mod download
+      working-directory: shortener
+
+    - name: Run tests
+      run: make test
+      working-directory: shortener
+
+    - name: Run lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+        working-directory: shortener
+
+  build:
+    name: Build and Push Image
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ secrets.DOCKER_REGISTRY || 'ghcr.io' }}/${{ github.repository_owner }}/url-shortener:latest .
+      working-directory: shortener
+
+    - name: Login to GitHub Container Registry
+      if: github.ref == 'refs/heads/main'
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Push Docker image
+      if: github.ref == 'refs/heads/main'
+      run: |
+        docker push ${{ secrets.DOCKER_REGISTRY || 'ghcr.io' }}/${{ github.repository_owner }}/url-shortener:latest
+      working-directory: shortener
+
+  deploy:
+    name: Deploy to Production
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up SSH
+      run: |
+        sudo apt-get update && sudo apt-get install -y sshpass
+        mkdir -p ~/.ssh
+        ssh-keyscan -t rsa ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to VPS
+      run: |
+        make deploy
+      working-directory: shortener
+      env:
+        SSHPASS: ${{ secrets.SSHPASS }}
+
+    - name: Verify deployment
+      run: |
+        curl -sSf http://${{ secrets.VPS_HOST }}:8080/health
