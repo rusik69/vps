@@ -120,7 +120,7 @@ deploy: ## Deploy entire vps repo to msk.govno2.cloud
 	@echo "Syncing entire vps repo to root's home..."
 	sshpass -e rsync -avz --exclude-from=.gitignore ../ root@msk.govno2.cloud:~/
 	@echo "Building and starting services on msk.govno2.cloud..."
-	sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose build && docker compose up -d"
+	sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose pull && docker compose up -d"
 	@echo "Deployment to msk.govno2.cloud completed successfully"
 
 .PHONY: stop
