@@ -54,7 +54,6 @@ type Repository interface {
 
 	// Click operations
 	CreateClick(shortURLID int64, userAgent, ipAddress, referrer string) error
-	CreateClickWithIP(shortURLID int64, userAgent string, ipAddress interface{}, referrer string) error
 
 	// Rate limiting operations
 	GetOrCreateRateLimit(ipAddress string) (*RateLimit, error)
@@ -145,14 +144,6 @@ func (r *repository) GetClicks(shortURLID int64, limit int) ([]Click, error) {
 }
 
 func (r *repository) CreateClick(shortURLID int64, userAgent, ipAddress, referrer string) error {
-	_, err := r.db.Exec(
-		"INSERT INTO clicks (short_url_id, user_agent, ip_address, referrer, created_at) VALUES ($1, $2, $3, $4, $5)",
-		shortURLID, userAgent, ipAddress, referrer, time.Now(),
-	)
-	return err
-}
-
-func (r *repository) CreateClickWithIP(shortURLID int64, userAgent string, ipAddress interface{}, referrer string) error {
 	_, err := r.db.Exec(
 		"INSERT INTO clicks (short_url_id, user_agent, ip_address, referrer, created_at) VALUES ($1, $2, $3, $4, $5)",
 		shortURLID, userAgent, ipAddress, referrer, time.Now(),
