@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/google/uuid"
 	"github.com/rusik69/shortener/internal/db"
@@ -26,13 +27,17 @@ func NewService(repo db.Repository) Service {
 }
 
 func (s *service) CreateShortURL(originalURL string) (string, error) {
+	parsedURL, err := url.ParseRequestURI(originalURL)
+	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
+		return "", ErrInvalidURL
+	}
 	shortCode := uuid.New().String()[:8]
-	
-	_, err := s.repo.CreateShortURL(shortCode, originalURL, nil, nil)
+
+	_, err = s.repo.CreateShortURL(shortCode, originalURL, nil, nil)
 	if err != nil {
 		return "", err
 	}
-	
+
 	return shortCode, nil
 }
 
@@ -64,7 +69,10 @@ func (s *service) RedirectURL(code, ip, userAgent string) (string, error) {
 		fmt.Printf("Failed to increment click count: %v\n", err)
 	}
 
-	// Record analytics
+	// Record analytics - ensure we have a valid IP
+	if ip == "" || ip == "::" || ip == "::1" {
+		ip = "127.0.0.1" // Use localhost for invalid IPs
+	}
 	err = s.repo.CreateClick(shortURL.ID, userAgent, ip, "")
 	if err != nil {
 		// Don't fail the redirect if analytics fails

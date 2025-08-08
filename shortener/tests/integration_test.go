@@ -1,3 +1,5 @@
+//go:build integration
+
 package tests
 
 import (
@@ -13,6 +15,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rusik69/shortener/internal/api"
 	"github.com/rusik69/shortener/internal/db"
+	"github.com/rusik69/shortener/internal/middleware"
 	"github.com/rusik69/shortener/internal/service"
 )
 
@@ -23,8 +26,8 @@ func TestMain(m *testing.M) {
 }
 
 func setupTestDB(t *testing.T) (*sql.DB, func()) {
-	// Use in-memory SQLite for testing
-	testDB, err := sql.Open("pgx", "postgresql://postgres:postgres@localhost:5432/url_shortener_test?sslmode=disable")
+	// Connect to PostgreSQL container for testing
+	testDB, err := sql.Open("pgx", "postgresql://postgres:postgres@db:5432/url_shortener_test?sslmode=disable")
 	if err != nil {
 		t.Skipf("Skipping integration tests: %v", err)
 	}
@@ -50,10 +53,13 @@ func setupTestDB(t *testing.T) (*sql.DB, func()) {
 func setupTestRouter(testDB *sql.DB) *gin.Engine {
 	repo := db.NewRepository(testDB)
 	svc := service.NewService(repo)
-	
-	router := gin.New()
+
+	// Reset rate limiter before each test
+	middleware.ResetRateLimiter()
+
+	router := gin.Default()
 	api.SetupRoutes(router, svc)
-	
+
 	return router
 }
 
@@ -163,6 +169,7 @@ func TestIntegrationRedirectFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
+	req.Header.Set("X-Forwarded-For", "127.0.0.1")
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -275,26 +282,26 @@ func TestIntegrationRateLimiting(t *testing.T) {
 	}
 
 	// Make requests up to the rate limit
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 101; i++ {
 		req, err := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(jsonBody))
 		if err != nil {
 			t.Fatalf("Failed to create request: %v", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.RemoteAddr = "127.0.0.1:12345" // Set consistent IP
-		
+		req.Header.Set("X-Forwarded-For", "127.0.0.1") // Set consistent IP
+
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// The first requests should succeed, later ones should be rate limited
-		if i < 99 {
+		// The first 100 requests should succeed, the 101st should be rate limited
+		if i < 100 {
 			if w.Code != http.StatusCreated {
-				t.Logf("Request %d: Expected status %d, got %d", i, http.StatusCreated, w.Code)
+				t.Errorf("Request %d: Expected status %d, got %d", i+1, http.StatusCreated, w.Code)
 			}
 		} else {
-			// The 100th request should be rate limited
+			// The 101st request should be rate limited
 			if w.Code != http.StatusTooManyRequests {
-				t.Errorf("Expected rate limiting on request %d, got status %d", i, w.Code)
+				t.Errorf("Expected rate limiting on request %d, got status %d", i+1, w.Code)
 			}
 		}
 	}

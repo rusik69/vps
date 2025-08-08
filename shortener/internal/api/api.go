@@ -1,9 +1,9 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
-	"net/url"
-	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rusik69/shortener/internal/middleware"
@@ -12,6 +12,9 @@ import (
 
 // SetupRoutes configures all API routes
 func SetupRoutes(r *gin.Engine, svc service.Service) {
+	// Trust all proxies
+	r.ForwardedByClientIP = true
+	
 	// Apply rate limiting middleware
 	r.Use(middleware.RateLimitMiddleware())
 	
@@ -46,7 +49,7 @@ func SetupRoutes(r *gin.Engine, svc service.Service) {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status": "ok",
-			"timestamp": "2025-01-01T00:00:00Z",
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
 		})
 	})
 }
@@ -76,20 +79,19 @@ func createShortURL(svc service.Service) gin.HandlerFunc {
 			return
 		}
 
-		// Validate URL format
-		if !isValidURL(req.URL) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Invalid URL format",
-			})
-			return
-		}
-
 		shortCode, err := svc.CreateShortURL(req.URL)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to create short URL",
-				"details": err.Error(),
-			})
+			if err == service.ErrInvalidURL {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "Invalid URL format",
+					"details": err.Error(),
+				})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "Failed to create short URL",
+					"details": err.Error(),
+				})
+			}
 			return
 		}
 
@@ -140,7 +142,10 @@ func redirectURL(svc service.Service) gin.HandlerFunc {
 			return
 		}
 
-		originalURL, err := svc.RedirectURL(code, c.ClientIP(), c.Request.UserAgent())
+		// Get IP address - pass as-is to service layer for proper handling
+		ip := c.ClientIP()
+		
+		originalURL, err := svc.RedirectURL(code, ip, c.Request.UserAgent())
 		if err != nil {
 			if gin.Mode() == gin.TestMode {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Short URL not found"})
@@ -154,19 +159,4 @@ func redirectURL(svc service.Service) gin.HandlerFunc {
 
 		c.Redirect(http.StatusMovedPermanently, originalURL)
 	}
-}
-
-// isValidURL validates if the provided string is a valid URL
-func isValidURL(str string) bool {
-	if str == "" {
-		return false
-	}
-	
-	// Add http:// if no scheme is provided
-	if !strings.HasPrefix(str, "http://") && !strings.HasPrefix(str, "https://") {
-		str = "http://" + str
-	}
-	
-	u, err := url.Parse(str)
-	return err == nil && u.Scheme != "" && u.Host != ""
 }

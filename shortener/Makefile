@@ -90,9 +90,9 @@ clean: ## Clean build artifacts
 	docker system prune -f
 
 .PHONY: test-integration
-test-integration: ## Run integration tests
-	@echo "Running integration tests..."
-	go test ./tests/... -v -tags=integration
+test-integration: ## Run integration tests in containers
+	@echo "Running integration tests in containers..."
+	docker compose run --rm test
 
 .PHONY: test-all
 test-all: test test-integration ## Run all tests

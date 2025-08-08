@@ -54,6 +54,7 @@ type Repository interface {
 
 	// Click operations
 	CreateClick(shortURLID int64, userAgent, ipAddress, referrer string) error
+	CreateClickWithIP(shortURLID int64, userAgent string, ipAddress interface{}, referrer string) error
 
 	// Rate limiting operations
 	GetOrCreateRateLimit(ipAddress string) (*RateLimit, error)
@@ -151,7 +152,20 @@ func (r *repository) CreateClick(shortURLID int64, userAgent, ipAddress, referre
 	return err
 }
 
+func (r *repository) CreateClickWithIP(shortURLID int64, userAgent string, ipAddress interface{}, referrer string) error {
+	_, err := r.db.Exec(
+		"INSERT INTO clicks (short_url_id, user_agent, ip_address, referrer, created_at) VALUES ($1, $2, $3, $4, $5)",
+		shortURLID, userAgent, ipAddress, referrer, time.Now(),
+	)
+	return err
+}
+
 func (r *repository) GetOrCreateRateLimit(ipAddress string) (*RateLimit, error) {
+	// Handle invalid IP addresses
+	if ipAddress == "" || ipAddress == "::" || ipAddress == "::1" {
+		ipAddress = "127.0.0.1" // Default to localhost for rate limiting
+	}
+	
 	var rateLimit RateLimit
 	err := r.db.QueryRow(
 		"SELECT id, ip_address, request_count, reset_at, created_at FROM rate_limits WHERE ip_address = $1",
@@ -189,6 +203,11 @@ func (r *repository) UpdateRateLimit(rateLimit *RateLimit) error {
 }
 
 func (r *repository) CreateCaptchaAttempt(ipAddress string, success bool) error {
+	// Handle invalid IP addresses
+	if ipAddress == "" || ipAddress == "::" || ipAddress == "::1" {
+		ipAddress = "127.0.0.1" // Default to localhost
+	}
+	
 	_, err := r.db.Exec(
 		"INSERT INTO captcha_attempts (ip_address, success, created_at) VALUES ($1, $2, $3)",
 		ipAddress, success, time.Now(),

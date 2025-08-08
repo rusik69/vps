@@ -7,9 +7,6 @@ import (
 )
 
 // MockService is a mock implementation of Service for testing
-var ErrInvalidURL = errors.New("invalid URL")
-var ErrURLNotFound = errors.New("URL not found")
-
 type MockService struct {
 	urls map[string]string
 	stats map[string]URLStats
@@ -41,7 +38,7 @@ func (m *MockService) GetURLStats(code string) (URLStats, error) {
 	if stats, exists := m.stats[code]; exists {
 		return stats, nil
 	}
-	return URLStats{}, ErrURLNotFound
+	return URLStats{}, errors.New("URL not found")
 }
 
 func (m *MockService) RedirectURL(code, ip, userAgent string) (string, error) {
@@ -53,7 +50,7 @@ func (m *MockService) RedirectURL(code, ip, userAgent string) (string, error) {
 		}
 		return originalURL, nil
 	}
-	return "", ErrURLNotFound
+	return "", errors.New("URL not found")
 }
 
 func (m *MockService) ValidateCaptcha(captcha string) bool {

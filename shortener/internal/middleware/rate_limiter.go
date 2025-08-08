@@ -24,6 +24,10 @@ var (
 func RateLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
+		// Handle cases where IP is empty or invalid
+		if ip == "" || ip == "::" || ip == "::1" {
+			ip = "127.0.0.1"
+		}
 		
 		mu.Lock()
 		now := time.Now()
@@ -53,4 +57,11 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		
 		c.Next()
 	}
+}
+
+// ResetRateLimiter resets the rate limiter state for testing purposes.
+func ResetRateLimiter() {
+	mu.Lock()
+	requests = make(map[string][]time.Time)
+	mu.Unlock()
 }

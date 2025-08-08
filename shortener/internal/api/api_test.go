@@ -68,8 +68,8 @@ func TestShortenURL(t *testing.T) {
 
 func TestShortenURLInvalid(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
-	mockService := &MockService{}
+
+	mockService := &MockServiceWithErrors{}
 	router := gin.Default()
 	SetupRoutes(router, mockService)
 
@@ -86,8 +86,8 @@ func TestShortenURLInvalid(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusCreated, rec.Code)
-	assert.Contains(t, rec.Body.String(), "short_code")
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Invalid URL format")
 }
 
 func TestShortenURLMissingURL(t *testing.T) {
@@ -251,7 +251,10 @@ func (m *MockService) RedirectURL(code, ip, userAgent string) (string, error) {
 type MockServiceWithErrors struct{}
 
 func (m *MockServiceWithErrors) CreateShortURL(originalURL string) (string, error) {
-	return "", errors.New("service error")
+	if originalURL == "https://example.com" {
+		return "", errors.New("service error")
+	}
+	return "", service.ErrInvalidURL
 }
 
 func (m *MockServiceWithErrors) GetURLStats(code string) (service.URLStats, error) {
