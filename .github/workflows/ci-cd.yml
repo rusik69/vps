@@ -72,17 +72,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Set up SSH
-      run: |
-        sudo apt-get update && sudo apt-get install -y sshpass
-        mkdir -p ~/.ssh
-        if [ -n "${{ secrets.VPSHOST }}" ]; then
-          ssh-keyscan -t rsa ${{ secrets.VPSHOST }} >> ~/.ssh/known_hosts
-        else
-          echo "Error: VPSHOST secret is not set"
-          exit 1
-        fi
-
     - name: Deploy to VPS
       run: |
         make deploy
