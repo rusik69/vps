@@ -76,7 +76,11 @@ jobs:
       run: |
         mkdir -p ~/.ssh
         if [ -n "${{ secrets.VPSHOST }}" ]; then
-          ssh-keyscan -t rsa ${{ secrets.VPSHOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -t rsa,ed25519 ${{ secrets.VPSHOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          # Also add strict host key checking disable as fallback
+          echo "Host ${{ secrets.VPSHOST }}" >> ~/.ssh/config
+          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+          echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
         else
           echo "Error: VPSHOST secret is not set"
           exit 1
