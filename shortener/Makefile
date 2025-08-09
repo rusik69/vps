@@ -147,11 +147,13 @@ ci: deps check ## Run CI pipeline
 deploy: ## Deploy production compose file to msk.govno2.cloud
 	@echo "Deploying production compose file to msk.govno2.cloud..."
 	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
+	@echo "Testing SSH connectivity..."
+	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "echo 'SSH connection successful'" || { echo "Error: Cannot connect to msk.govno2.cloud via SSH"; exit 1; }
 	@echo "Creating shortener directory and syncing production compose file..."
-	sshpass -e ssh root@msk.govno2.cloud "mkdir -p ~/shortener"
-	sshpass -e rsync -avz docker-compose.prod.yml root@msk.govno2.cloud:~/shortener/
+	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "mkdir -p ~/shortener"
+	sshpass -e rsync -avz -e "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no" docker-compose.prod.yml root@msk.govno2.cloud:~/shortener/
 	@echo "Pulling latest images and starting services..."
-	sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d"
+	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/shortener && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d"
 	@echo "Deployment completed successfully"
 
 .PHONY: stop
