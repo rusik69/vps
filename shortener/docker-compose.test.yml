@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  url-shortener:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/url_shortener_test?sslmode=disable
+    depends_on:
+      - db
+    networks:
+      - url-shortener-network
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=url_shortener_test
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    networks:
+      - url-shortener-network
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/url_shortener_test?sslmode=disable
+    networks:
+      - url-shortener-network
+    depends_on:
+      - db
+
+volumes:
+  postgres_test_data:
+
+networks:
+  url-shortener-network:
+    driver: bridge

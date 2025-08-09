@@ -14,6 +14,15 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Start test services
+      run: docker compose up -d db
+      working-directory: shortener
+
+    - name: Wait for database
+      run: |
+        timeout 30s bash -c 'until docker compose exec db pg_isready -U postgres; do sleep 1; done'
+      working-directory: shortener
+
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
@@ -26,12 +35,19 @@ jobs:
     - name: Run tests
       run: make test
       working-directory: shortener
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/url_shortener?sslmode=disable
 
     - name: Run lint
       uses: golangci/golangci-lint-action@v6
       with:
         version: latest
         working-directory: shortener
+
+    - name: Stop test services
+      if: always()
+      run: docker compose down
+      working-directory: shortener
 
   build:
     name: Build and Push Image

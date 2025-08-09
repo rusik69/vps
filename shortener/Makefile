@@ -52,19 +52,49 @@ docker-push: docker-build ## Push Docker image to registry
 
 # Docker Compose targets
 .PHONY: up
-up: ## Start services with docker compose
+up: ## Start services with docker compose (development)
 	docker compose up -d
 
+.PHONY: up-test
+up-test: ## Start test services with docker compose
+	docker compose -f docker-compose.test.yml up -d
+
+.PHONY: up-prod
+up-prod: ## Start production services with docker compose
+	docker compose -f docker-compose.prod.yml up -d
+
 .PHONY: down
-down: ## Stop services with docker compose
+down: ## Stop services with docker compose (development)
 	docker compose down
 
+.PHONY: down-test
+down-test: ## Stop test services with docker compose
+	docker compose -f docker-compose.test.yml down
+
+.PHONY: down-prod
+down-prod: ## Stop production services with docker compose
+	docker compose -f docker-compose.prod.yml down
+
 .PHONY: logs
-logs: ## Show docker compose logs
+logs: ## Show docker compose logs (development)
 	docker compose logs -f
 
+.PHONY: logs-test
+logs-test: ## Show test docker compose logs
+	docker compose -f docker-compose.test.yml logs -f
+
+.PHONY: logs-prod
+logs-prod: ## Show production docker compose logs
+	docker compose -f docker-compose.prod.yml logs -f
+
 .PHONY: restart
-restart: down up ## Restart services
+restart: down up ## Restart services (development)
+
+.PHONY: restart-test
+restart-test: down-test up-test ## Restart test services
+
+.PHONY: restart-prod
+restart-prod: down-prod up-prod ## Restart production services
 
 # Database targets
 .PHONY: db-migrate
@@ -92,7 +122,7 @@ clean: ## Clean build artifacts
 .PHONY: test-integration
 test-integration: ## Run integration tests in containers
 	@echo "Running integration tests in containers..."
-	docker compose run --rm test
+	docker compose -f docker-compose.test.yml run --rm test
 
 .PHONY: test-all
 test-all: test test-integration ## Run all tests
@@ -114,21 +144,21 @@ ci: deps check ## Run CI pipeline
 	@echo "CI pipeline completed successfully"
 
 .PHONY: deploy
-deploy: ## Deploy docker-compose.yml to msk.govno2.cloud
-	@echo "Deploying docker-compose.yml to msk.govno2.cloud..."
+deploy: ## Deploy production compose file to msk.govno2.cloud
+	@echo "Deploying production compose file to msk.govno2.cloud..."
 	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
-	@echo "Creating shortener directory and syncing docker-compose.yml..."
+	@echo "Creating shortener directory and syncing production compose file..."
 	sshpass -e ssh root@msk.govno2.cloud "mkdir -p ~/shortener"
-	sshpass -e rsync -avz docker-compose.yml root@msk.govno2.cloud:~/shortener/
+	sshpass -e rsync -avz docker-compose.prod.yml root@msk.govno2.cloud:~/shortener/
 	@echo "Pulling latest images and starting services..."
-	sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose pull && docker compose up -d"
+	sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d"
 	@echo "Deployment completed successfully"
 
 .PHONY: stop
 stop: ## Stop services on msk.govno2.cloud
 	@echo "Stopping services on msk.govno2.cloud..."
 	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
-	@sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose down"
+	@sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose -f docker-compose.prod.yml down"
 	@echo "Services stopped successfully"
 
 .PHONY: release
