@@ -114,14 +114,15 @@ ci: deps check ## Run CI pipeline
 	@echo "CI pipeline completed successfully"
 
 .PHONY: deploy
-deploy: ## Deploy entire vps repo to msk.govno2.cloud
-	@echo "Deploying entire vps repo to msk.govno2.cloud..."
+deploy: ## Deploy docker-compose.yml to msk.govno2.cloud
+	@echo "Deploying docker-compose.yml to msk.govno2.cloud..."
 	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
-	@echo "Syncing entire vps repo to root's home..."
-	sshpass -e rsync -avz --exclude-from=.gitignore ../ root@msk.govno2.cloud:~/
-	@echo "Building and starting services on msk.govno2.cloud..."
+	@echo "Creating shortener directory and syncing docker-compose.yml..."
+	sshpass -e ssh root@msk.govno2.cloud "mkdir -p ~/shortener"
+	sshpass -e rsync -avz docker-compose.yml root@msk.govno2.cloud:~/shortener/
+	@echo "Pulling latest images and starting services..."
 	sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose pull && docker compose up -d"
-	@echo "Deployment to msk.govno2.cloud completed successfully"
+	@echo "Deployment completed successfully"
 
 .PHONY: stop
 stop: ## Stop services on msk.govno2.cloud
