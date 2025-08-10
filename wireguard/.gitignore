@@ -2,10 +2,7 @@
 # Never commit these to the repository
 
 # Client configuration files
-configs/*.conf
-configs/*.png
-configs/peer*
-
+configs/*
 # Keep the directory but ignore all generated files
 !configs/.gitkeep
 
