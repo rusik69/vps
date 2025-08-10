@@ -12,7 +12,7 @@ func TestCreateShortURL(t *testing.T) {
 	svc := NewService(mockRepo)
 	testURL := "https://example.com"
 
-	shortCode, err := svc.CreateShortURL(testURL)
+	shortCode, err := svc.CreateShortURL(testURL, "")
 	if err != nil {
 		t.Errorf("CreateShortURL failed: %v", err)
 	}

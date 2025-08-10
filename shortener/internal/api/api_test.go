@@ -230,7 +230,10 @@ func TestInvalidJSONRequest(t *testing.T) {
 // MockService implements the Service interface for testing
 type MockService struct{}
 
-func (m *MockService) CreateShortURL(originalURL string) (string, error) {
+func (m *MockService) CreateShortURL(originalURL, customCode string) (string, error) {
+	if customCode != "" {
+		return customCode, nil
+	}
 	return "abc12345", nil
 }
 
@@ -250,7 +253,7 @@ func (m *MockService) RedirectURL(code, ip, userAgent string) (string, error) {
 // MockServiceWithErrors implements the Service interface for error testing
 type MockServiceWithErrors struct{}
 
-func (m *MockServiceWithErrors) CreateShortURL(originalURL string) (string, error) {
+func (m *MockServiceWithErrors) CreateShortURL(originalURL, customCode string) (string, error) {
 	if originalURL == "https://example.com" {
 		return "", errors.New("service error")
 	}
