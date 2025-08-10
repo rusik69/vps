@@ -55,6 +55,8 @@ Use the `.conf` files from the `./configs/` directory.
 - Server uses persistent storage for configuration data
 - Traffic is routed through the VPS server
 - DNS queries are handled by the VPN
+- **Important**: Client configs contain private keys and are automatically ignored by git
+- Never commit `.conf` files to version control - they contain sensitive cryptographic keys
 
 ## Troubleshooting
 

@@ -1,0 +1,17 @@
+# WireGuard client configuration files contain sensitive keys
+# Never commit these to the repository
+
+# Client configuration files
+configs/*.conf
+configs/*.png
+configs/peer*
+
+# Keep the directory but ignore all generated files
+!configs/.gitkeep
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+.DS_Store
