@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -78,4 +78,39 @@ jobs:
       run: |
         docker push ${{ secrets.DOCKER_REGISTRY || 'ghcr.io' }}/${{ github.repository_owner }}/url-shortener:latest
       working-directory: shortener
+
+  deploy:
+    name: Deploy to Production
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        if [ -n "${{ secrets.VPSHOST }}" ]; then
+          ssh-keyscan -t rsa,ed25519 ${{ secrets.VPSHOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          # Also add strict host key checking disable as fallback
+          echo "Host ${{ secrets.VPSHOST }}" >> ~/.ssh/config
+          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+          echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
+        else
+          echo "Error: VPSHOST secret is not set"
+          exit 1
+        fi
+
+    - name: Deploy to VPS
+      run: |
+        make deploy
+      working-directory: shortener
+      env:
+        SSHPASS: ${{ secrets.SSHPASS }}
+
+    - name: Verify deployment
+      run: |
+        curl -sSf -H "Host: url.govno2.cloud" http://${{ secrets.VPSHOST }}/health
 
