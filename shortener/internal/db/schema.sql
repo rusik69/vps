@@ -39,16 +39,8 @@ CREATE TABLE IF NOT EXISTS rate_limits (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create captcha attempts table
-CREATE TABLE IF NOT EXISTS captcha_attempts (
-    id SERIAL PRIMARY KEY,
-    ip_address INET NOT NULL,
-    success BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
 
 -- Indexes
 CREATE INDEX idx_short_urls_short_code ON short_urls(short_code);
 CREATE INDEX idx_clicks_short_url_id ON clicks(short_url_id);
 CREATE INDEX idx_rate_limits_ip_address ON rate_limits(ip_address);
-CREATE INDEX idx_captcha_attempts_ip_address ON captcha_attempts(ip_address);

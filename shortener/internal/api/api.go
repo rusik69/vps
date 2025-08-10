@@ -55,7 +55,8 @@ func SetupRoutes(r *gin.Engine, svc service.Service) {
 
 // CreateURLRequest represents the request payload for URL shortening
 type CreateURLRequest struct {
-	URL string `json:"url" binding:"required"`
+	URL        string `json:"url" binding:"required"`
+	CustomCode string `json:"custom_code,omitempty"`
 }
 
 // CreateURLResponse represents the response for URL shortening
@@ -78,7 +79,7 @@ func createShortURL(svc service.Service) gin.HandlerFunc {
 			return
 		}
 
-		shortCode, err := svc.CreateShortURL(req.URL)
+		shortCode, err := svc.CreateShortURL(req.URL, req.CustomCode)
 		if err != nil {
 			if err == service.ErrInvalidURL {
 				c.JSON(http.StatusBadRequest, gin.H{

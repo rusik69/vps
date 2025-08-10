@@ -36,13 +36,6 @@ type RateLimit struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
-// CaptchaAttempt represents a captcha attempt
-type CaptchaAttempt struct {
-	ID        int64     `json:"id"`
-	IPAddress string    `json:"ip_address"`
-	Success   bool      `json:"success"`
-	CreatedAt time.Time `json:"created_at"`
-}
 
 // Repository interface defines database operations
 type Repository interface {
@@ -58,10 +51,6 @@ type Repository interface {
 	// Rate limiting operations
 	GetOrCreateRateLimit(ipAddress string) (*RateLimit, error)
 	UpdateRateLimit(rateLimit *RateLimit) error
-
-	// Captcha operations
-	CreateCaptchaAttempt(ipAddress string, success bool) error
-	GetRecentCaptchaAttempts(ipAddress string, limit int) ([]CaptchaAttempt, error)
 }
 
 // NewRepository creates a new database repository
@@ -193,42 +182,3 @@ func (r *repository) UpdateRateLimit(rateLimit *RateLimit) error {
 	return err
 }
 
-func (r *repository) CreateCaptchaAttempt(ipAddress string, success bool) error {
-	// Handle invalid IP addresses
-	if ipAddress == "" || ipAddress == "::" || ipAddress == "::1" {
-		ipAddress = "127.0.0.1" // Default to localhost
-	}
-	
-	_, err := r.db.Exec(
-		"INSERT INTO captcha_attempts (ip_address, success, created_at) VALUES ($1, $2, $3)",
-		ipAddress, success, time.Now(),
-	)
-	return err
-}
-
-func (r *repository) GetRecentCaptchaAttempts(ipAddress string, limit int) ([]CaptchaAttempt, error) {
-	rows, err := r.db.Query(
-		"SELECT id, ip_address, success, created_at FROM captcha_attempts WHERE ip_address = $1 ORDER BY created_at DESC LIMIT $2",
-		ipAddress, limit,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = rows.Close()
-	}()
-
-	var attempts []CaptchaAttempt
-	for rows.Next() {
-		var attempt CaptchaAttempt
-		err := rows.Scan(&attempt.ID, &attempt.IPAddress, &attempt.Success, &attempt.CreatedAt)
-		if err != nil {
-			return nil, err
-		}
-		attempts = append(attempts, attempt)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return attempts, nil
-}

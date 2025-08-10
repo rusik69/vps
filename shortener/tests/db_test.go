@@ -177,22 +177,6 @@ func TestRepositoryUpdateRateLimit(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestRepositoryCreateCaptchaAttempt(t *testing.T) {
-	database, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer func() { _ = database.Close() }()
-
-	repo := db.NewRepository(database)
-
-	// Test successful captcha attempt creation
-	mock.ExpectExec("INSERT INTO captcha_attempts").
-		WithArgs("192.168.1.1", true, sqlmock.AnyArg()).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-
-	err = repo.CreateCaptchaAttempt("192.168.1.1", true)
-	assert.NoError(t, err)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
 
 func TestRepositoryGetClicks(t *testing.T) {
 	database, mock, err := sqlmock.New()

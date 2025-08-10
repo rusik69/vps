@@ -11,11 +11,13 @@ DOCKER_REGISTRY ?= localhost:5000
 .PHONY: help
 help: ## Show this help message
 	@echo "Available targets:"
-	@echo "  build    - Build the application"
-	@echo "  run      - Run the application"
-	@echo "  test     - Run tests"
-	@echo "  lint     - Run linters"
-	@echo "  clean    - Clean build artifacts"
+	@echo "  build        - Build the application"
+	@echo "  run          - Run the application"
+	@echo "  test         - Run tests"
+	@echo "  lint         - Run linters"
+	@echo "  clean        - Clean build artifacts"
+	@echo "  deploy-local - Deploy shortener locally using docker-compose.yml"
+	@echo "  stop-local   - Stop local shortener deployment"
 
 .PHONY: build
 build: ## Build the application
@@ -51,6 +53,14 @@ docker-push: docker-build ## Push Docker image to registry
 	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE)
 
 # Docker Compose targets
+.PHONY: deploy-local
+deploy-local: ## Deploy shortener locally using docker-compose.yml
+	docker compose up -d --build
+
+.PHONY: stop-local
+stop-local: ## Stop local shortener deployment
+	docker compose down
+
 .PHONY: up
 up: ## Start services with docker compose (development)
 	docker compose up -d

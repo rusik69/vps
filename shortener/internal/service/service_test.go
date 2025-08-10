@@ -102,10 +102,3 @@ func (m *MockRepository) UpdateRateLimit(rateLimit *db.RateLimit) error {
 	return nil
 }
 
-func (m *MockRepository) CreateCaptchaAttempt(ipAddress string, success bool) error {
-	return nil
-}
-
-func (m *MockRepository) GetRecentCaptchaAttempts(ipAddress string, limit int) ([]db.CaptchaAttempt, error) {
-	return []db.CaptchaAttempt{}, nil
-}

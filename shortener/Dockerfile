@@ -22,10 +22,8 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /app/url-shortener .
 
-# Copy static assets
-COPY internal/web/templates ./templates
-COPY internal/web/styles.css ./styles.css
-COPY internal/web/main.js ./js
+# Copy web assets
+COPY web/ ./web/
 
 # Expose port
 EXPOSE 8080

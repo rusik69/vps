@@ -2,54 +2,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('shortenForm');
     const urlInput = document.getElementById('url');
     const customCheckbox = document.getElementById('custom');
-    const captchaContainer = document.getElementById('captcha');
+    const customCodeField = document.getElementById('customCodeField');
+    const customCodeInput = document.getElementById('customCode');
     const resultDiv = document.getElementById('result');
     const shortUrlInput = document.getElementById('shortUrl');
     const copyButton = document.getElementById('copyButton');
 
-    // Initialize reCAPTCHA
-    let grecaptcha;
-    let recaptchaWidget;
-
-    window.onloadCallback = function() {
-        recaptchaWidget = grecaptcha.render('recaptcha-container', {
-            'sitekey': 'YOUR_RECAPTCHA_SITE_KEY',
-            'callback': function(response) {
-                // Handle successful verification
-            }
-        });
-    };
+    // Toggle custom code field
+    customCheckbox.addEventListener('change', function() {
+        if (customCheckbox.checked) {
+            customCodeField.classList.remove('hidden');
+        } else {
+            customCodeField.classList.add('hidden');
+            customCodeInput.value = '';
+        }
+    });
 
     // Handle form submission
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const url = urlInput.value;
-        const customCode = customCheckbox.checked ? urlInput.value.split('/').pop() : '';
+        const requestBody = { url };
+
+        // Add custom code if checkbox is checked
+        if (customCheckbox.checked && customCodeInput.value.trim()) {
+            requestBody.custom_code = customCodeInput.value.trim();
+        }
 
         try {
-            // Show CAPTCHA
-            captchaContainer.classList.remove('hidden');
-            
-            // Wait for CAPTCHA verification
-            const token = await new Promise((resolve) => {
-                grecaptcha.ready(() => {
-                    grecaptcha.execute('YOUR_RECAPTCHA_SITE_KEY', {action: 'shorten'})
-                        .then(resolve);
-                });
-            });
-
             // Make API request
             const response = await fetch('/api/shorten', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    url,
-                    customCode,
-                    captchaToken: token
-                })
+                body: JSON.stringify(requestBody)
             });
 
             if (!response.ok) {
@@ -57,10 +45,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const data = await response.json();
-            shortUrlInput.value = data.short_url;
+            shortUrlInput.value = data.full_url;
             resultDiv.classList.remove('hidden');
+            
             copyButton.addEventListener('click', () => {
-                navigator.clipboard.writeText(data.short_url)
+                navigator.clipboard.writeText(data.full_url)
                     .then(() => {
                         copyButton.textContent = 'Copied!';
                         setTimeout(() => {

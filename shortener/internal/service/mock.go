@@ -19,11 +19,21 @@ func NewMockService() *MockService {
 	}
 }
 
-func (m *MockService) CreateShortURL(originalURL string) (string, error) {
+func (m *MockService) CreateShortURL(originalURL, customCode string) (string, error) {
 	if originalURL == "" || !strings.HasPrefix(originalURL, "http") {
 		return "", ErrInvalidURL
 	}
-	code := "abc123"
+	
+	var code string
+	if customCode != "" {
+		if _, exists := m.urls[customCode]; exists {
+			return "", errors.New("custom code already exists")
+		}
+		code = customCode
+	} else {
+		code = "abc123"
+	}
+	
 	m.urls[code] = originalURL
 	m.stats[code] = URLStats{
 		Code:        code,
@@ -31,7 +41,7 @@ func (m *MockService) CreateShortURL(originalURL string) (string, error) {
 		Clicks:      0,
 		LastAccess:  time.Now(),
 	}
-	return "http://localhost:8080/" + code, nil
+	return code, nil
 }
 
 func (m *MockService) GetURLStats(code string) (URLStats, error) {
@@ -53,9 +63,6 @@ func (m *MockService) RedirectURL(code, ip, userAgent string) (string, error) {
 	return "", errors.New("URL not found")
 }
 
-func (m *MockService) ValidateCaptcha(captcha string) bool {
-	return captcha == "test123"
-}
 
 // CheckRateLimit checks if the IP is rate limited
 func (m *MockService) CheckRateLimit(ip string) (bool, error) {
