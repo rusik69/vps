@@ -2,7 +2,7 @@
 
 # Variables
 SERVICE_NAME := wireguard
-COMPOSE_FILE := ../docker-compose.wireguard.yml
+COMPOSE_FILE := docker-compose.prod.yml
 VOLUME_NAME := wireguard_config_data
 
 # Default target
@@ -43,9 +43,9 @@ deploy: ## Deploy WireGuard to production
 	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "echo 'SSH connection successful'" || { echo "Error: Cannot connect to msk.govno2.cloud via SSH"; exit 1; }
 	@echo "Creating wireguard directory and syncing compose file..."
 	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "mkdir -p ~/wireguard"
-	sshpass -e rsync -avz -e "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no" $(COMPOSE_FILE) root@msk.govno2.cloud:~/wireguard/docker-compose.yml
+	sshpass -e rsync -avz -e "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no" $(COMPOSE_FILE) root@msk.govno2.cloud:~/wireguard/
 	@echo "Creating persistent volume and starting WireGuard..."
-	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker volume create $(VOLUME_NAME) 2>/dev/null || true && docker compose pull && docker compose up -d"
+	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker volume create $(VOLUME_NAME) 2>/dev/null || true && docker compose -f $(COMPOSE_FILE) pull && docker compose -f $(COMPOSE_FILE) up -d"
 	@echo "WireGuard deployment completed successfully"
 	@echo "Client configs will be generated automatically. Use 'make get-config' to download them."
 
@@ -53,20 +53,20 @@ deploy: ## Deploy WireGuard to production
 stop: ## Stop WireGuard on production
 	@echo "Stopping WireGuard on production..."
 	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
-	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker compose down"
+	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker compose -f $(COMPOSE_FILE) down"
 	@echo "WireGuard stopped successfully"
 
 .PHONY: logs
 logs: ## Show WireGuard logs on production
 	@echo "Fetching WireGuard logs from production..."
 	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
-	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker compose logs -f --tail=50"
+	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker compose -f $(COMPOSE_FILE) logs -f --tail=50"
 
 .PHONY: status
 status: ## Check WireGuard status on production
 	@echo "Checking WireGuard status on production..."
 	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
-	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker compose ps && echo '--- Container logs (last 10 lines) ---' && docker compose logs --tail=10"
+	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker compose -f $(COMPOSE_FILE) ps && echo '--- Container logs (last 10 lines) ---' && docker compose -f $(COMPOSE_FILE) logs --tail=10"
 
 .PHONY: get-config
 get-config: ## Download client configs from production
@@ -84,13 +84,13 @@ get-config: ## Download client configs from production
 qr-codes: ## Show QR codes for client configs
 	@echo "Generating QR codes for client configs..."
 	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
-	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker compose exec wireguard /app/show-peer 1" 2>/dev/null || echo "QR code generation failed. Make sure WireGuard is running."
+	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker compose -f $(COMPOSE_FILE) exec wireguard /app/show-peer 1" 2>/dev/null || echo "QR code generation failed. Make sure WireGuard is running."
 
 .PHONY: restart
 restart: ## Restart WireGuard on production
 	@echo "Restarting WireGuard on production..."
 	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
-	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker compose restart"
+	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/wireguard && docker compose -f $(COMPOSE_FILE) restart"
 	@echo "WireGuard restarted successfully"
 
 .PHONY: clean

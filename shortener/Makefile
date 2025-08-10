@@ -162,7 +162,7 @@ deploy: ## Deploy production compose file to msk.govno2.cloud
 	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "echo 'SSH connection successful'" || { echo "Error: Cannot connect to msk.govno2.cloud via SSH"; exit 1; }
 	@echo "Creating shortener directory and syncing production compose file and nginx config..."
 	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "mkdir -p ~/shortener"
-	sshpass -e rsync -avz -e "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no" ../docker-compose.prod.yml ../nginx.conf root@msk.govno2.cloud:~/shortener/
+	sshpass -e rsync -avz -e "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no" docker-compose.prod.yml nginx.conf root@msk.govno2.cloud:~/shortener/
 	@echo "Creating persistent volume and pulling latest images..."
 	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/shortener && docker volume create shortener_postgres_data 2>/dev/null || true && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d"
 	@echo "Deployment completed successfully"
