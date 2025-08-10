@@ -18,6 +18,7 @@ help: ## Show this help message
 	@echo "  clean        - Clean build artifacts"
 	@echo "  deploy-local - Deploy shortener locally using docker-compose.yml"
 	@echo "  stop-local   - Stop local shortener deployment"
+	@echo "  backup-db    - Create database backup on production"
 
 .PHONY: build
 build: ## Build the application
@@ -162,8 +163,8 @@ deploy: ## Deploy production compose file to msk.govno2.cloud
 	@echo "Creating shortener directory and syncing production compose file and nginx config..."
 	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "mkdir -p ~/shortener"
 	sshpass -e rsync -avz -e "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no" ../docker-compose.prod.yml ../nginx.conf root@msk.govno2.cloud:~/shortener/
-	@echo "Pulling latest images and starting services..."
-	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/shortener && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d"
+	@echo "Creating persistent volume and pulling latest images..."
+	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/shortener && docker volume create shortener_postgres_data 2>/dev/null || true && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d"
 	@echo "Deployment completed successfully"
 
 .PHONY: stop
@@ -172,6 +173,13 @@ stop: ## Stop services on msk.govno2.cloud
 	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
 	@sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose -f docker-compose.prod.yml down"
 	@echo "Services stopped successfully"
+
+.PHONY: backup-db
+backup-db: ## Create database backup on production
+	@echo "Creating database backup..."
+	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
+	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/shortener && docker compose -f docker-compose.prod.yml exec -T db pg_dump -U postgres url_shortener > backup_\$$(date +%Y%m%d_%H%M%S).sql"
+	@echo "Database backup completed"
 
 .PHONY: release
 release: ci docker-build docker-push ## Build and release

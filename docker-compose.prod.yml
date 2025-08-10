@@ -29,14 +29,22 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=url_shortener
+      - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # For manual backups if needed
+      - postgres_backups:/var/lib/postgresql/backups
     networks:
       - url-shortener-network
     restart: unless-stopped
+    # Ensure proper shutdown to prevent data corruption
+    stop_grace_period: 30s
 
 volumes:
   postgres_data:
+    external: true
+    name: shortener_postgres_data
+  postgres_backups:
 
 networks:
   url-shortener-network:
