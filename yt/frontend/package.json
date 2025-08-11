@@ -1,0 +1,55 @@
+{
+  "name": "youtube-clone-frontend",
+  "version": "1.0.0",
+  "description": "Vue.js frontend for YouTube clone",
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "test:unit": "jest",
+    "lint": "echo 'Linting skipped - no linting configured yet'"
+  },
+  "dependencies": {
+    "vue": "^3.3.4",
+    "vue-router": "^4.2.4",
+    "axios": "^1.4.0"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-router": "^5.0.8",
+    "@vue/cli-service": "^5.0.8",
+    "@vue/compiler-sfc": "^3.3.4",
+    "@vue/test-utils": "^2.4.1",
+    "@vue/vue3-jest": "^29.2.4",
+    "jest": "^29.5.0",
+    "jest-environment-jsdom": "^29.5.0",
+    "@babel/preset-env": "^7.22.0",
+    "babel-jest": "^29.5.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "vue"
+    ],
+    "transform": {
+      "^.+\\.vue$": "@vue/vue3-jest",
+      "^.+\\.(js|jsx)$": "babel-jest"
+    },
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1"
+    },
+    "testEnvironmentOptions": {
+      "customExportConditions": ["node", "node-addons"]
+    },
+    "collectCoverageFrom": [
+      "src/**/*.{js,vue}",
+      "!src/main.js",
+      "!**/node_modules/**"
+    ],
+    "globals": {
+      "@vue/vue3-jest": {
+        "babelConfig": true
+      }
+    }
+  }
+}

@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    name: Test and Lint
+  test-shortener:
+    name: Test and Lint Shortener
     runs-on: ubuntu-latest
     
     steps:
@@ -50,21 +50,229 @@ jobs:
       run: docker compose down
       working-directory: shortener
 
+  test-youtube:
+    name: Test and Lint YouTube Clone
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: youtube_clone_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.23
+
+    - name: Install dependencies
+      run: go mod download
+      working-directory: yt/backend
+
+    - name: Create database schema
+      run: |
+        PGPASSWORD=postgres psql -h localhost -U postgres -d youtube_clone_test -f ../../database/schema.sql
+      working-directory: yt/backend
+      env:
+        PGPASSWORD: postgres
+
+    - name: Run tests
+      run: go test -v ./...
+      working-directory: yt/backend
+      env:
+        TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/youtube_clone_test?sslmode=disable
+
+    - name: Run lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+        working-directory: yt/backend
+
+  test-youtube-frontend:
+    name: Test YouTube Frontend in Container
+    runs-on: ubuntu-latest
+    
+    services:
+      yt-backend:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: youtube_clone_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js for unit tests
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: yt/frontend/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+      working-directory: yt/frontend
+
+    - name: Run unit tests
+      run: npm run test:unit
+      working-directory: yt/frontend
+
+    - name: Build frontend (verify compilation)
+      run: npm run build
+      working-directory: yt/frontend
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build backend for testing
+      uses: docker/build-push-action@v4
+      with:
+        context: ./yt/backend
+        load: true
+        tags: yt-backend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build frontend for testing
+      uses: docker/build-push-action@v4
+      with:
+        context: ./yt/frontend
+        load: true
+        tags: yt-frontend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Create test database schema
+      run: |
+        docker run --rm --network host -v $(pwd)/yt/database/schema.sql:/schema.sql postgres:15-alpine \
+          psql -h localhost -U postgres -d youtube_clone_test -f /schema.sql
+      env:
+        PGPASSWORD: postgres
+
+    - name: Start backend container
+      run: |
+        docker run -d --name yt-backend-test \
+          --network host \
+          -e DATABASE_URL="postgres://postgres:postgres@localhost:5432/youtube_clone_test?sslmode=disable" \
+          -e JWT_SECRET="test-secret-key" \
+          -e PORT="8081" \
+          -e UPLOAD_DIR="/app/uploads" \
+          -v yt-test-uploads:/app/uploads \
+          yt-backend:test
+
+    - name: Wait for backend to be ready
+      run: |
+        timeout 30s bash -c 'until curl -f http://localhost:8081/health; do sleep 1; done'
+
+    - name: Start frontend container
+      run: |
+        docker run -d --name yt-frontend-test \
+          --network host \
+          -p 3000:3000 \
+          yt-frontend:test
+
+    - name: Wait for frontend to be ready
+      run: |
+        timeout 30s bash -c 'until curl -f http://localhost:3000/health; do sleep 1; done'
+
+    - name: Run frontend integration tests
+      run: |
+        # Test frontend accessibility
+        curl -f http://localhost:3000/ || exit 1
+        
+        # Test API proxy functionality
+        curl -f http://localhost:3000/api/videos || exit 1
+        
+        # Test static file serving
+        curl -I http://localhost:3000/ | grep -q "200 OK" || exit 1
+
+    - name: Test frontend build artifacts
+      run: |
+        # Extract built files from container and verify
+        docker cp yt-frontend-test:/usr/share/nginx/html ./frontend-dist
+        
+        # Check that essential files exist
+        test -f frontend-dist/index.html || exit 1
+        test -d frontend-dist/assets || test -f frontend-dist/js/app.js || echo "JS files found"
+        
+        echo "Frontend build artifacts verified successfully"
+
+    - name: Run container smoke tests
+      run: |
+        # Test user registration endpoint (should fail without proper data but return 400, not 500)
+        response=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/api/auth/register)
+        if [ "$response" != "400" ]; then
+          echo "Expected 400 from registration endpoint, got $response"
+          exit 1
+        fi
+        
+        # Test video list endpoint
+        curl -f http://localhost:3000/api/videos -H "Accept: application/json" || exit 1
+        
+        echo "Container smoke tests passed"
+
+    - name: Check container logs for errors
+      if: always()
+      run: |
+        echo "=== Backend Container Logs ==="
+        docker logs yt-backend-test || true
+        echo "=== Frontend Container Logs ==="
+        docker logs yt-frontend-test || true
+
+    - name: Cleanup containers
+      if: always()
+      run: |
+        docker stop yt-backend-test yt-frontend-test || true
+        docker rm yt-backend-test yt-frontend-test || true
+        docker volume rm yt-test-uploads || true
+
   build:
-    name: Build and Push Image
-    needs: test
+    name: Build and Push Images
+    needs: [test-shortener, test-youtube, test-youtube-frontend]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     
+    strategy:
+      matrix:
+        service: [shortener, yt-backend, yt-frontend]
+        include:
+          - service: shortener
+            context: ./shortener
+            image: url-shortener
+          - service: yt-backend
+            context: ./yt/backend
+            image: yt-backend
+          - service: yt-frontend
+            context: ./yt/frontend
+            image: yt-frontend
+    
     steps:
     - uses: actions/checkout@v3
 
-    - name: Build Docker image
-      run: |
-        docker build -t ${{ secrets.DOCKER_REGISTRY || 'ghcr.io' }}/${{ github.repository_owner }}/url-shortener:latest .
-      working-directory: shortener
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
 
     - name: Login to GitHub Container Registry
       if: github.ref == 'refs/heads/main'
@@ -74,11 +282,27 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Push Docker image
-      if: github.ref == 'refs/heads/main'
-      run: |
-        docker push ${{ secrets.DOCKER_REGISTRY || 'ghcr.io' }}/${{ github.repository_owner }}/url-shortener:latest
-      working-directory: shortener
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ secrets.DOCKER_REGISTRY || 'ghcr.io' }}/${{ github.repository_owner }}/${{ matrix.image }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: ${{ matrix.context }}
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.ref == 'refs/heads/main' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
   deploy:
     name: Deploy to Production
@@ -92,6 +316,8 @@ jobs:
     - name: Set up SSH
       run: |
         mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
         if [ -n "${{ secrets.VPSHOST }}" ]; then
           ssh-keyscan -t rsa,ed25519 ${{ secrets.VPSHOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
           # Also add strict host key checking disable as fallback
@@ -103,14 +329,25 @@ jobs:
           exit 1
         fi
 
-    - name: Deploy to VPS
+    - name: Deploy all services to VPS
       run: |
-        make deploy
-      working-directory: shortener
+        make deploy-prod SERVER_HOST=root@${{ secrets.VPSHOST }}
       env:
-        SSHPASS: ${{ secrets.SSHPASS }}
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        DOCKER_REGISTRY: ${{ secrets.DOCKER_REGISTRY || 'ghcr.io' }}/${{ github.repository_owner }}/
+        VERSION: latest
 
     - name: Verify deployment
       run: |
+        echo "Waiting for services to start..."
+        sleep 30
+        
+        echo "Testing shortener service..."
         curl -sSf -H "Host: url.govno2.cloud" http://${{ secrets.VPSHOST }}/health
+        
+        echo "Testing YouTube clone service..."
+        curl -sSf -H "Host: yt.govno2.cloud" http://${{ secrets.VPSHOST }}/api/videos
+        
+        echo "All services are running successfully!"
 

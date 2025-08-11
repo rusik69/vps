@@ -1,0 +1,47 @@
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+
+linters:
+  enable:
+    - gofmt
+    - golint
+    - govet
+    - ineffassign
+    - misspell
+    - deadcode
+    - varcheck
+    - structcheck
+    - unused
+    - typecheck
+    - gosimple
+    - staticcheck
+    - errcheck
+    - gosec
+    - unconvert
+    - goconst
+    - gocyclo
+
+linters-settings:
+  gocyclo:
+    min-complexity: 10
+  golint:
+    min-confidence: 0.8
+  goconst:
+    min-len: 3
+    min-occurrences: 2
+
+issues:
+  exclude-use-default: false
+  exclude:
+    # Ignore error handling in tests
+    - "error return value not checked.*test"
+    # Ignore missing comments for exported functions in tests
+    - "exported function.*should have comment.*_test.go"
+  exclude-rules:
+    # Disable some linters for test files
+    - path: _test\.go
+      linters:
+        - gosec
+        - goconst

@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: shared-postgres-prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shared_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ./shortener/database/schema.sql:/docker-entrypoint-initdb.d/01-shortener-schema.sql:ro
+      - ./yt/database/schema.sql:/docker-entrypoint-initdb.d/02-yt-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-shared_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  shortener:
+    image: ${DOCKER_REGISTRY:-}shortener:${VERSION:-latest}
+    container_name: shortener-prod
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-shared_db}?sslmode=disable
+      PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  yt-backend:
+    image: ${DOCKER_REGISTRY:-}yt-backend:${VERSION:-latest}
+    container_name: yt-backend-prod
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-shared_db}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 8081
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - yt_videos:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  yt-frontend:
+    image: ${DOCKER_REGISTRY:-}yt-frontend:${VERSION:-latest}
+    container_name: yt-frontend-prod
+    depends_on:
+      - yt-backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - shortener
+      - yt-frontend
+      - yt-backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks:
+      - app-network
+
+volumes:
+  postgres_data_prod:
+    external: true
+    name: shared_postgres_data
+  yt_videos:
+    external: true
+    name: yt_videos_data
+
+networks:
+  app-network:
+    driver: bridge
