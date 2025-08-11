@@ -331,7 +331,7 @@ jobs:
 
     - name: Deploy all services to VPS
       run: |
-        make deploy-prod SERVER_HOST=root@${{ secrets.VPSHOST }}
+        make deploy SERVER_HOST=root@${{ secrets.VPSHOST }}
       env:
         JWT_SECRET: ${{ secrets.JWT_SECRET }}
         POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}

@@ -97,7 +97,7 @@ make run-shortener  # or make run-yt
 
 ## Deployment
 
-The deployment uses the unified docker-compose.prod.yml configuration:
+The deployment uses a single unified target that deploys all services:
 
 - Single nginx container handling both domains
 - Shared PostgreSQL with separate table prefixes
@@ -105,4 +105,4 @@ The deployment uses the unified docker-compose.prod.yml configuration:
 - Health checks and graceful shutdowns
 - Rate limiting and security headers
 
-Manual deployment trigger creates a complete production environment with both services running on their respective domains.
+The single deployment target (`make deploy`) creates a complete production environment with both services running on their respective domains.

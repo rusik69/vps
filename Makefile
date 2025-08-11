@@ -10,7 +10,7 @@ POSTGRES_DB ?= shared_db
 SERVER_HOST ?= root@your-server.com
 PROJECT_DIR ?= /root/vps
 
-.PHONY: help build test run stop clean deploy-prod backup-db logs
+.PHONY: help build test run stop clean deploy backup-db logs
 
 # Default target
 help:
@@ -25,9 +25,7 @@ help:
 	@echo "  clean            - Clean up containers and images"
 	@echo ""
 	@echo "Deployment:"
-	@echo "  deploy-prod      - Deploy all services to production"
-	@echo "  deploy-shortener - Deploy only shortener service"
-	@echo "  deploy-yt        - Deploy only YouTube clone service"
+	@echo "  deploy           - Deploy all services to production"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  backup-db        - Backup PostgreSQL database"
@@ -85,7 +83,7 @@ clean: stop
 	@echo "Cleanup completed!"
 
 # Deploy all services to production
-deploy-prod: build
+deploy: build
 	@echo "Deploying all services to production..."
 	@echo "Pushing images to registry..."
 	docker push $(DOCKER_REGISTRY)shortener:$(VERSION)
@@ -121,37 +119,6 @@ deploy-prod: build
 	@echo "  - Shortener: http://url.govno2.cloud"
 	@echo "  - YouTube Clone: http://yt.govno2.cloud"
 
-# Deploy only shortener service
-deploy-shortener: build
-	@echo "Deploying shortener service to production..."
-	docker push $(DOCKER_REGISTRY)shortener:$(VERSION)
-	rsync -avz --delete \
-		--exclude '.git' \
-		--exclude 'main' \
-		./shortener/ $(SERVER_HOST):$(PROJECT_DIR)/shortener/
-	ssh $(SERVER_HOST) 'cd $(PROJECT_DIR) && \
-		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
-		VERSION=$(VERSION) \
-		docker-compose -f docker-compose.prod.yml up -d shortener'
-	@echo "Shortener service deployed!"
-
-# Deploy only YouTube clone
-deploy-yt: build
-	@echo "Deploying YouTube clone to production..."
-	docker push $(DOCKER_REGISTRY)yt-backend:$(VERSION)
-	docker push $(DOCKER_REGISTRY)yt-frontend:$(VERSION)
-	rsync -avz --delete \
-		--exclude '.git' \
-		--exclude 'node_modules' \
-		--exclude 'backend/main' \
-		--exclude 'frontend/dist' \
-		./yt/ $(SERVER_HOST):$(PROJECT_DIR)/yt/
-	ssh $(SERVER_HOST) 'cd $(PROJECT_DIR) && \
-		JWT_SECRET=$(JWT_SECRET) \
-		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
-		VERSION=$(VERSION) \
-		docker-compose -f docker-compose.prod.yml up -d yt-backend yt-frontend'
-	@echo "YouTube clone deployed!"
 
 # Backup database
 backup-db:
@@ -241,28 +208,6 @@ health-check:
 	@echo "Testing YouTube clone service..."
 	curl -f http://yt.govno2.cloud/api/videos || echo "YouTube clone health check failed"
 
-# Update services without downtime (rolling update)
-update-shortener:
-	@echo "Performing rolling update of shortener service..."
-	$(MAKE) build
-	docker push $(DOCKER_REGISTRY)shortener:$(VERSION)
-	ssh $(SERVER_HOST) 'cd $(PROJECT_DIR) && \
-		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
-		VERSION=$(VERSION) \
-		docker-compose -f docker-compose.prod.yml pull shortener && \
-		docker-compose -f docker-compose.prod.yml up -d shortener'
-
-update-yt:
-	@echo "Performing rolling update of YouTube clone..."
-	$(MAKE) build
-	docker push $(DOCKER_REGISTRY)yt-backend:$(VERSION)
-	docker push $(DOCKER_REGISTRY)yt-frontend:$(VERSION)
-	ssh $(SERVER_HOST) 'cd $(PROJECT_DIR) && \
-		JWT_SECRET=$(JWT_SECRET) \
-		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
-		VERSION=$(VERSION) \
-		docker-compose -f docker-compose.prod.yml pull yt-backend yt-frontend && \
-		docker-compose -f docker-compose.prod.yml up -d yt-backend yt-frontend'
 
 # Monitoring
 monitor:
