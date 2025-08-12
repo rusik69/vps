@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -39,7 +40,11 @@ func (h *Handler) UploadVideo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid file", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Failed to close uploaded file: %v", err)
+		}
+	}()
 
 	// Validate file type
 	if !isValidVideoFile(fileHeader.Filename) {
@@ -64,12 +69,18 @@ func (h *Handler) UploadVideo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create file", http.StatusInternalServerError)
 		return
 	}
-	defer dst.Close()
+	defer func() {
+		if err := dst.Close(); err != nil {
+			log.Printf("Failed to close destination file: %v", err)
+		}
+	}()
 
 	// Copy the uploaded file to destination
 	if _, err := io.Copy(dst, file); err != nil {
 		// Clean up the file if copy fails
-		os.Remove(filePath)
+		if removeErr := os.Remove(filePath); removeErr != nil {
+			log.Printf("Failed to remove file after copy failure: %v", removeErr)
+		}
 		http.Error(w, "Failed to save file", http.StatusInternalServerError)
 		return
 	}
@@ -79,7 +90,9 @@ func (h *Handler) UploadVideo(w http.ResponseWriter, r *http.Request) {
 	
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, `{"url": "%s", "filename": "%s"}`, fileURL, filename)
+	if _, err := fmt.Fprintf(w, `{"url": "%s", "filename": "%s"}`, fileURL, filename); err != nil {
+		log.Printf("Failed to write upload response: %v", err)
+	}
 }
 
 // ServeVideo serves uploaded video files

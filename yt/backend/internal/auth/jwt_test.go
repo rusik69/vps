@@ -107,7 +107,9 @@ func TestAuthMiddleware(t *testing.T) {
 		assert.Equal(t, userID, contextUserID)
 		
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		if _, err := w.Write([]byte("success")); err != nil {
+			t.Logf("Failed to write success response: %v", err)
+		}
 	})
 
 	// Wrap with auth middleware

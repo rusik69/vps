@@ -36,7 +36,11 @@ func cleanupTables(t *testing.T, storage *Storage) {
 
 func TestCreateUser(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	user := &models.User{
 		Username: "testuser",
@@ -53,7 +57,11 @@ func TestCreateUser(t *testing.T) {
 
 func TestCreateUserDuplicate(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	user1 := &models.User{
 		Username: "testuser",
@@ -76,7 +84,11 @@ func TestCreateUserDuplicate(t *testing.T) {
 
 func TestGetUserByUsername(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	// Test user not found
 	user, err := storage.GetUserByUsername("nonexistent")
@@ -103,7 +115,11 @@ func TestGetUserByUsername(t *testing.T) {
 
 func TestGetUserByID(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	// Test user not found
 	user, err := storage.GetUserByID(999)
@@ -129,7 +145,11 @@ func TestGetUserByID(t *testing.T) {
 
 func TestCreateVideo(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	// Create user first
 	user := &models.User{
@@ -158,7 +178,11 @@ func TestCreateVideo(t *testing.T) {
 
 func TestGetAllVideos(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	// Create user
 	user := &models.User{
@@ -210,7 +234,11 @@ func TestGetAllVideos(t *testing.T) {
 
 func TestGetVideoByID(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	// Test video not found
 	video, err := storage.GetVideoByID(999)
@@ -248,7 +276,11 @@ func TestGetVideoByID(t *testing.T) {
 
 func TestGetVideosByUserID(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	// Create users
 	user1 := &models.User{
@@ -304,7 +336,11 @@ func TestGetVideosByUserID(t *testing.T) {
 
 func TestUpdateVideo(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	// Create user and video
 	user := &models.User{
@@ -344,7 +380,11 @@ func TestUpdateVideo(t *testing.T) {
 
 func TestDeleteVideo(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	// Create user and video
 	user := &models.User{
@@ -375,7 +415,11 @@ func TestDeleteVideo(t *testing.T) {
 
 func TestDeleteVideoUnauthorized(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	// Create users
 	user1 := &models.User{
@@ -414,7 +458,11 @@ func TestDeleteVideoUnauthorized(t *testing.T) {
 
 func TestIncrementVideoViews(t *testing.T) {
 	storage := setupTestDB(t)
-	defer storage.Close()
+	defer func() {
+		if err := storage.Close(); err != nil {
+			t.Logf("Failed to close storage: %v", err)
+		}
+	}()
 
 	// Create user and video
 	user := &models.User{

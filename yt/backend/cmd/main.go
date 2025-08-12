@@ -24,7 +24,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			log.Printf("Failed to close storage: %v", err)
+		}
+	}()
 
 	// Initialize JWT manager
 	jwtManager := auth.NewJWTManager(jwtSecret, "youtube-clone", 24*time.Hour)
@@ -71,7 +75,9 @@ func main() {
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status": "ok", "timestamp": "%s"}`, time.Now().UTC().Format(time.RFC3339))
+		if _, err := fmt.Fprintf(w, `{"status": "ok", "timestamp": "%s"}`, time.Now().UTC().Format(time.RFC3339)); err != nil {
+			log.Printf("Failed to write health response: %v", err)
+		}
 	}).Methods("GET")
 
 	fmt.Printf("Starting YouTube Clone API server on port %s\n", port)

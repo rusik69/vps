@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -92,7 +93,9 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode response: %v", err)
+	}
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
@@ -132,7 +135,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode response: %v", err)
+	}
 }
 
 // Video handlers
@@ -144,7 +149,9 @@ func (h *Handler) GetVideos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(videos)
+	if err := json.NewEncoder(w).Encode(videos); err != nil {
+		log.Printf("Failed to encode videos: %v", err)
+	}
 }
 
 func (h *Handler) GetVideo(w http.ResponseWriter, r *http.Request) {
@@ -156,7 +163,9 @@ func (h *Handler) GetVideo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Increment views
-	h.storage.IncrementVideoViews(id)
+	if err := h.storage.IncrementVideoViews(id); err != nil {
+		log.Printf("Failed to increment video views: %v", err)
+	}
 
 	video, err := h.storage.GetVideoByID(id)
 	if err != nil {
@@ -169,7 +178,9 @@ func (h *Handler) GetVideo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(video)
+	if err := json.NewEncoder(w).Encode(video); err != nil {
+		log.Printf("Failed to encode video: %v", err)
+	}
 }
 
 func (h *Handler) CreateVideo(w http.ResponseWriter, r *http.Request) {
@@ -200,7 +211,9 @@ func (h *Handler) CreateVideo(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(video)
+	if err := json.NewEncoder(w).Encode(video); err != nil {
+		log.Printf("Failed to encode created video: %v", err)
+	}
 }
 
 func (h *Handler) UpdateVideo(w http.ResponseWriter, r *http.Request) {
@@ -238,7 +251,9 @@ func (h *Handler) UpdateVideo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(video)
+	if err := json.NewEncoder(w).Encode(video); err != nil {
+		log.Printf("Failed to encode updated video: %v", err)
+	}
 }
 
 func (h *Handler) DeleteVideo(w http.ResponseWriter, r *http.Request) {
@@ -277,5 +292,7 @@ func (h *Handler) GetMyVideos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(videos)
+	if err := json.NewEncoder(w).Encode(videos); err != nil {
+		log.Printf("Failed to encode user videos: %v", err)
+	}
 }
