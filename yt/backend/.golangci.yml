@@ -6,14 +6,11 @@ run:
 linters:
   enable:
     - gofmt
-    - golint
+    - revive  # replaces golint
     - govet
     - ineffassign
     - misspell
-    - deadcode
-    - varcheck
-    - structcheck
-    - unused
+    - unused  # replaces deadcode, varcheck, structcheck
     - typecheck
     - gosimple
     - staticcheck
@@ -26,7 +23,7 @@ linters:
 linters-settings:
   gocyclo:
     min-complexity: 10
-  golint:
+  revive:
     min-confidence: 0.8
   goconst:
     min-len: 3
