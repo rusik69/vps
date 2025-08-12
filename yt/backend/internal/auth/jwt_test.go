@@ -141,7 +141,7 @@ func TestAuthMiddleware(t *testing.T) {
 			name:           "Invalid token",
 			authHeader:     "Bearer invalid-token",
 			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Invalid token: token contains an invalid number of segments\n",
+			expectedBody:   "Invalid token: token is malformed: token contains an invalid number of segments\n",
 		},
 		{
 			name:           "Missing Bearer prefix",

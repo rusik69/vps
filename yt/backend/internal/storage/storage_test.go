@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"database/sql"
 	"os"
 	"testing"
 	"time"

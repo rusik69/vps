@@ -14,11 +14,11 @@ import (
 )
 
 type Handler struct {
-	storage    *storage.Storage
+	storage    storage.StorageInterface
 	jwtManager *auth.JWTManager
 }
 
-func New(storage *storage.Storage, jwtManager *auth.JWTManager) *Handler {
+func New(storage storage.StorageInterface, jwtManager *auth.JWTManager) *Handler {
 	return &Handler{
 		storage:    storage,
 		jwtManager: jwtManager,
