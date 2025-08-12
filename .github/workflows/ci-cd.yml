@@ -83,7 +83,7 @@ jobs:
 
     - name: Create database schema
       run: |
-        PGPASSWORD=postgres psql -h localhost -U postgres -d youtube_clone_test -f ../../database/schema.sql
+        PGPASSWORD=postgres psql -h localhost -U postgres -d youtube_clone_test -f ../database/schema.sql
       working-directory: yt/backend
       env:
         PGPASSWORD: postgres
