@@ -23,8 +23,6 @@ linters:
 linters-settings:
   gocyclo:
     min-complexity: 10
-  revive:
-    min-confidence: 0.8
   goconst:
     min-len: 3
     min-occurrences: 2
