@@ -70,9 +70,6 @@ up: ## Start services with docker compose (development)
 up-test: ## Start test services with docker compose
 	docker compose -f docker-compose.test.yml up -d
 
-.PHONY: up-prod
-up-prod: ## Start production services with docker compose
-	docker compose -f docker-compose.prod.yml up -d
 
 .PHONY: down
 down: ## Stop services with docker compose (development)
@@ -82,9 +79,6 @@ down: ## Stop services with docker compose (development)
 down-test: ## Stop test services with docker compose
 	docker compose -f docker-compose.test.yml down
 
-.PHONY: down-prod
-down-prod: ## Stop production services with docker compose
-	docker compose -f docker-compose.prod.yml down
 
 .PHONY: logs
 logs: ## Show docker compose logs (development)
@@ -94,9 +88,6 @@ logs: ## Show docker compose logs (development)
 logs-test: ## Show test docker compose logs
 	docker compose -f docker-compose.test.yml logs -f
 
-.PHONY: logs-prod
-logs-prod: ## Show production docker compose logs
-	docker compose -f docker-compose.prod.yml logs -f
 
 .PHONY: restart
 restart: down up ## Restart services (development)
@@ -104,8 +95,6 @@ restart: down up ## Restart services (development)
 .PHONY: restart-test
 restart-test: down-test up-test ## Restart test services
 
-.PHONY: restart-prod
-restart-prod: down-prod up-prod ## Restart production services
 
 # Database targets
 .PHONY: db-migrate
@@ -154,32 +143,8 @@ clean-all: clean ## Clean everything including Docker images
 ci: deps check ## Run CI pipeline
 	@echo "CI pipeline completed successfully"
 
-.PHONY: deploy
-deploy: ## Deploy production compose file to msk.govno2.cloud
-	@echo "Deploying production compose file to msk.govno2.cloud..."
-	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
-	@echo "Testing SSH connectivity..."
-	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "echo 'SSH connection successful'" || { echo "Error: Cannot connect to msk.govno2.cloud via SSH"; exit 1; }
-	@echo "Creating shortener directory and syncing production compose file and nginx config..."
-	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "mkdir -p ~/shortener"
-	sshpass -e rsync -avz -e "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no" docker-compose.prod.yml nginx.conf root@msk.govno2.cloud:~/shortener/
-	@echo "Creating persistent volume and pulling latest images..."
-	sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/shortener && docker volume create shortener_postgres_data 2>/dev/null || true && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d"
-	@echo "Deployment completed successfully"
 
-.PHONY: stop
-stop: ## Stop services on msk.govno2.cloud
-	@echo "Stopping services on msk.govno2.cloud..."
-	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
-	@sshpass -e ssh root@msk.govno2.cloud "cd ~/shortener && docker compose -f docker-compose.prod.yml down"
-	@echo "Services stopped successfully"
 
-.PHONY: backup-db
-backup-db: ## Create database backup on production
-	@echo "Creating database backup..."
-	@if [ -z "$$SSHPASS" ]; then echo "Error: SSHPASS environment variable is not set"; exit 1; fi
-	@sshpass -e ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@msk.govno2.cloud "cd ~/shortener && docker compose -f docker-compose.prod.yml exec -T db pg_dump -U postgres url_shortener > backup_\$$(date +%Y%m%d_%H%M%S).sql"
-	@echo "Database backup completed"
 
 .PHONY: release
 release: ci docker-build docker-push ## Build and release

@@ -10,7 +10,7 @@ POSTGRES_DB ?= youtube_clone
 SERVER_HOST ?= root@your-server.com
 PROJECT_DIR ?= /root/yt
 
-.PHONY: help build test run stop clean deploy-local deploy-prod backup-db logs
+.PHONY: help build test run stop clean deploy-local backup-db logs
 
 # Default target
 help:
@@ -25,7 +25,7 @@ help:
 	@echo ""
 	@echo "Deployment:"
 	@echo "  deploy-local  - Deploy locally with docker-compose"
-	@echo "  deploy-prod   - Deploy to production server"
+	@echo ""
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  backup-db     - Backup PostgreSQL database"
@@ -76,36 +76,6 @@ clean: stop
 # Deploy locally (alias for run)
 deploy-local: run
 
-# Deploy to production server
-deploy-prod: build
-	@echo "Deploying YouTube Clone to production..."
-	@echo "Pushing images to registry..."
-	docker push $(DOCKER_REGISTRY)yt-backend:$(VERSION)
-	docker push $(DOCKER_REGISTRY)yt-frontend:$(VERSION)
-	
-	@echo "Syncing files to server..."
-	rsync -avz --delete \
-		--exclude 'node_modules' \
-		--exclude '.git' \
-		--exclude 'backend/main' \
-		--exclude 'frontend/dist' \
-		. $(SERVER_HOST):$(PROJECT_DIR)/
-	
-	@echo "Creating external volume on server..."
-	ssh $(SERVER_HOST) 'docker volume create yt_postgres_data || true'
-	
-	@echo "Starting services on production server..."
-	ssh $(SERVER_HOST) 'cd $(PROJECT_DIR) && \
-		JWT_SECRET=$(JWT_SECRET) \
-		POSTGRES_USER=$(POSTGRES_USER) \
-		POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
-		POSTGRES_DB=$(POSTGRES_DB) \
-		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
-		VERSION=$(VERSION) \
-		docker-compose -f docker-compose.prod.yml up -d'
-	
-	@echo "Production deployment completed!"
-	@echo "Services should be available at http://$(SERVER_HOST)"
 
 # Backup database
 backup-db:
@@ -141,29 +111,6 @@ dev-db:
 		-v $(PWD)/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro \
 		postgres:15-alpine
 
-# Production maintenance
-prod-logs:
-	@echo "Showing production logs..."
-	ssh $(SERVER_HOST) 'cd $(PROJECT_DIR) && docker-compose -f docker-compose.prod.yml logs -f'
-
-prod-status:
-	@echo "Checking production status..."
-	ssh $(SERVER_HOST) 'cd $(PROJECT_DIR) && docker-compose -f docker-compose.prod.yml ps'
-
-prod-restart:
-	@echo "Restarting production services..."
-	ssh $(SERVER_HOST) 'cd $(PROJECT_DIR) && \
-		JWT_SECRET=$(JWT_SECRET) \
-		POSTGRES_USER=$(POSTGRES_USER) \
-		POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
-		POSTGRES_DB=$(POSTGRES_DB) \
-		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
-		VERSION=$(VERSION) \
-		docker-compose -f docker-compose.prod.yml restart'
-
-prod-stop:
-	@echo "Stopping production services..."
-	ssh $(SERVER_HOST) 'cd $(PROJECT_DIR) && docker-compose -f docker-compose.prod.yml down'
 
 # SSL certificate setup (Let's Encrypt)
 setup-ssl:

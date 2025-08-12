@@ -10,7 +10,7 @@ POSTGRES_DB ?= shared_db
 SERVER_HOST ?= root@your-server.com
 PROJECT_DIR ?= /root/vps
 
-.PHONY: help build test run stop clean deploy backup-db logs
+.PHONY: help build test run stop clean deploy deploy-prod backup-db logs
 
 # Default target
 help:
@@ -25,7 +25,8 @@ help:
 	@echo "  clean            - Clean up containers and images"
 	@echo ""
 	@echo "Deployment:"
-	@echo "  deploy           - Deploy all services to production"
+	@echo "  deploy           - Deploy all services to production (alias for deploy-prod)"
+	@echo "  deploy-prod      - Deploy all services to production"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  backup-db        - Backup PostgreSQL database"
@@ -82,8 +83,11 @@ clean: stop
 	docker system prune -f
 	@echo "Cleanup completed!"
 
+# Deploy all services to production (alias for deploy-prod)
+deploy: deploy-prod
+
 # Deploy all services to production
-deploy: build
+deploy-prod: build
 	@echo "Deploying all services to production..."
 	@echo "Pushing images to registry..."
 	docker push $(DOCKER_REGISTRY)shortener:$(VERSION)
