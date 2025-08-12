@@ -164,10 +164,8 @@ jobs:
 
     - name: Create test database schema
       run: |
-        docker run --rm --network host -v $(pwd)/yt/database/schema.sql:/schema.sql postgres:15-alpine \
+        docker run --rm --network host -e PGPASSWORD=postgres -v $(pwd)/yt/database/schema.sql:/schema.sql postgres:15-alpine \
           psql -h localhost -U postgres -d youtube_clone_test -f /schema.sql
-      env:
-        PGPASSWORD: postgres
 
     - name: Start backend container
       run: |
